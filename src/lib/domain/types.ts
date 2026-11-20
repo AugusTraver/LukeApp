@@ -21,9 +21,36 @@ export interface FamilySettings {
   insistent: boolean;
 }
 
+/** Un perro de la familia. Los que comparten calendario salen juntos. */
+export interface Dog {
+  id: string;
+  name: string;
+  /** black | brown | golden | gray */
+  coat: string;
+  calendarId: string;
+}
+
+/** Reglas de turnos de un grupo de perros que sale junto. */
+export interface Calendar {
+  id: string;
+  walkTimes: HHMM[];
+  fixedDays: (string | null)[];
+  rotation: string[];
+  rotationAnchor: ISODate;
+  /** Desde cuándo cuenta (faltas, racha). Sin valor: el inicio de la familia. */
+  startDate?: ISODate;
+}
+
+/** Calendario principal: el que ya tiene toda familia. */
+export const MAIN = "main";
+
 export interface Family {
   id: string;
   name: string;
+  /**
+   * Los campos de perro y reglas (dogName, dogCoat, walkTimes, fixedDays, rotation, rotationAnchor)
+   * describen el calendario activo. Guardados, corresponden al calendario principal.
+   */
   dogName: string;
   /** Color del pelaje para la ilustración: black | brown | golden | gray */
   dogCoat: string;
@@ -40,6 +67,22 @@ export interface Family {
   startDate: ISODate;
   settings: FamilySettings;
   joinCode: string;
+  /** Todos los perros. Vacío en familias viejas: se usa dogName/dogCoat. */
+  dogs?: Dog[];
+  /** Calendarios además del principal (perros que salen aparte). */
+  calendars?: Calendar[];
+  /** Calendario que describe esta vista (MAIN si no se indica). */
+  calendarId?: string;
+}
+
+/** Alguien que no está (vacaciones, viaje): sus turnos se reparten sin contar como falta. */
+export interface Absence {
+  id: string;
+  memberId: string;
+  from: ISODate;
+  to: ISODate;
+  reason?: string;
+  createdAt: string;
 }
 
 /** Cambio puntual de responsable de un turno. */
@@ -58,6 +101,7 @@ export interface Override {
   missedSlot?: HHMM;
   /** Para "swap": id del intercambio. */
   swapId?: string;
+  calendarId?: string;
 }
 
 export interface Swap {
@@ -73,6 +117,7 @@ export interface Swap {
   reason: string;
   status: "pending" | "accepted" | "rejected" | "cancelled";
   createdAt: string;
+  calendarId?: string;
 }
 
 export interface Confirmation {
@@ -82,6 +127,7 @@ export interface Confirmation {
   walkedBy: string;
   at: string; // ISO timestamp
   mood?: string;
+  calendarId?: string;
 }
 
 export interface FamilyData {
@@ -90,6 +136,7 @@ export interface FamilyData {
   overrides: Override[];
   swaps: Swap[];
   confirmations: Confirmation[];
+  absences?: Absence[];
 }
 
 export type TurnStatus =
@@ -107,6 +154,8 @@ export interface Turn {
   /** Responsable actual, con excepciones, intercambios y deudas. */
   memberId: string | null;
   isFixed: boolean;
+  /** Si el responsable de la regla no está (vacaciones), a quién reemplaza este turno. */
+  coverFor?: string;
   /** Último cambio aplicado, si hubo. */
   override?: Override;
   confirmation?: Confirmation;

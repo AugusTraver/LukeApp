@@ -187,3 +187,19 @@ export function Dog({
     </svg>
   );
 }
+
+/** Varios perros juntos (los que salen en el mismo paseo). Con uno solo, es igual a <Dog>. */
+export function DogPack({ coats, size = 200, mood = "happy", sun = true, halo, className = "" }: { coats: string[]; size?: number; mood?: DogMood; sun?: boolean; halo?: string; className?: string }) {
+  const list = (coats.length ? coats : ["black"]).slice(0, 3) as DogCoat[];
+  if (list.length === 1) return <Dog mood={mood} coat={list[0]} size={size} sun={sun} halo={halo} className={className} />;
+  const each = Math.round(size * (list.length === 2 ? 0.74 : 0.62));
+  return (
+    <div className={`flex items-end justify-center ${className}`} style={{ height: size }} role="img" aria-label={`${list.length} perros`}>
+      {list.map((c, i) => (
+        <div key={i} style={{ marginLeft: i ? -each * 0.32 : 0, zIndex: list.length - i }} aria-hidden>
+          <Dog mood={mood} coat={c} size={each} sun={false} />
+        </div>
+      ))}
+    </div>
+  );
+}

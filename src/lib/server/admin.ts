@@ -1,7 +1,7 @@
 // Solo servidor: cliente con permisos totales (service role). Nunca importar desde el navegador.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { FamilyData } from "../domain/types";
-import { confFromRow, famFromRow, memberFromRow, overrideFromRow, swapFromRow } from "../store/supabase";
+import { absenceFromRow, confFromRow, famFromRow, memberFromRow, overrideFromRow, swapFromRow } from "../store/supabase";
 
 let admin: SupabaseClient | null = null;
 
@@ -17,20 +17,22 @@ export function adminClient() {
 export async function loadFamilyServer(familyId: string): Promise<FamilyData> {
   const sb = adminClient();
   const since = new Date(Date.now() - 60 * 86_400_000).toISOString().slice(0, 10);
-  const [f, m, o, s, c] = await Promise.all([
+  const [f, m, o, s, c, a] = await Promise.all([
     sb.from("families").select("*").eq("id", familyId).single(),
     sb.from("members").select("*").eq("family_id", familyId).order("created_at"),
     sb.from("overrides").select("*").eq("family_id", familyId).gte("date", since),
     sb.from("swaps").select("*").eq("family_id", familyId).gte("back_date", since),
     sb.from("confirmations").select("*").eq("family_id", familyId).gte("date", since),
+    sb.from("absences").select("*").eq("family_id", familyId).gte("to_date", since),
   ]);
-  for (const r of [f, m, o, s, c]) if (r.error) throw new Error(r.error.message);
+  for (const r of [f, m, o, s, c, a]) if (r.error) throw new Error(r.error.message);
   return {
     family: famFromRow(f.data),
     members: m.data!.map(memberFromRow),
     overrides: o.data!.map(overrideFromRow),
     swaps: s.data!.map(swapFromRow),
     confirmations: c.data!.map(confFromRow),
+    absences: a.data!.map(absenceFromRow),
   };
 }
 

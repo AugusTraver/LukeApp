@@ -93,6 +93,7 @@ export function HistoryTab() {
             notes.push(`Paseo de deuda: ${f.member(o.memberId)?.name} lo saca ${whenPhrase(o.date, now.date)} en lugar de ${f.member(o.fromMemberId)?.name ?? "otra persona"}.`);
           for (const s of swaps.filter((s) => (s.date === t.date && s.slot === t.slot) || (s.backDate === t.date && s.backSlot === t.slot)))
             notes.push(`Intercambio entre ${f.member(s.proposerId)?.name} y ${f.member(s.partnerId)?.name}${s.reason ? `: “${s.reason}”` : "."}`);
+          if (t.coverFor) notes.push(`${f.member(t.coverFor)?.name ?? "Alguien"} estaba de viaje: no cuenta como falta.`);
           const dot = t.status === "done" ? "bg-moss" : t.status === "missed" ? "bg-clay" : "bg-line";
           return (
             <li key={t.date + t.slot} className="relative pl-8 pb-5">

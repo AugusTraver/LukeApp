@@ -1,16 +1,27 @@
-// Solo servidor: lo que corre cada 5 minutos para cada familia.
+// Solo servidor: lo que corre cada 5 minutos para cada familia y cada calendario (grupo de perros).
 import { settleDebts } from "../domain/actions";
-import { nowInZone } from "../domain/dates";
+import { activeCalendars, calendarView } from "../domain/calendars";
+import { nowInZone, timeToMinutes } from "../domain/dates";
 import { debtPush, planPushes } from "../domain/notifyPlan";
-import { timeToMinutes } from "../domain/dates";
+import type { FamilyData } from "../domain/types";
 import { adminClient, loadFamilyServer } from "./admin";
 import { sendToMembers } from "./push";
 
 export async function tickFamily(familyId: string) {
-  const sb = adminClient();
-  const data = await loadFamilyServer(familyId);
-  const now = nowInZone(data.family.timeZone);
+  const full = await loadFamilyServer(familyId);
   const result = { familyId, debts: 0, pushes: 0 };
+  for (const { calendar } of activeCalendars(full.family)) {
+    const r = await tickCalendar(familyId, calendarView(full, calendar.id), calendar.id);
+    result.debts += r.debts;
+    result.pushes += r.pushes;
+  }
+  return result;
+}
+
+async function tickCalendar(familyId: string, data: FamilyData, cal: string) {
+  const sb = adminClient();
+  const now = nowInZone(data.family.timeZone);
+  const result = { debts: 0, pushes: 0 };
 
   // 1) Cerrar días pasados: paseo de deuda.
   const debts = settleDebts(data, { now, stamp: new Date().toISOString(), newId: () => crypto.randomUUID() });
@@ -18,6 +29,7 @@ export async function tickFamily(familyId: string) {
     const { error } = await sb.from("overrides").insert({
       id: d.id,
       family_id: familyId,
+      calendar_id: cal,
       date: d.date,
       slot: d.slot,
       member_id: d.memberId,
@@ -29,14 +41,14 @@ export async function tickFamily(familyId: string) {
     if (error) continue; // ya lo aplicó un celular (índice único)
     result.debts++;
     const p = debtPush(data, d.memberId!, d.missedDate!, d.date !== d.missedDate ? d.date : null, now.date);
-    await sendToMembers(familyId, p.to, { title: p.title, body: p.body, tag: `debt-${d.missedDate}` });
+    await sendToMembers(familyId, p.to, { title: p.title, body: p.body, tag: `debt-${cal}-${d.missedDate}` });
   }
-  if (debts.length) data.overrides.push(...debts);
+  if (debts.length) data.overrides.push(...debts.map((d) => ({ ...d, calendarId: cal })));
 
   // 2) Avisos del día.
   const [{ data: logRows }, { data: snoozeRows }] = await Promise.all([
-    sb.from("notification_log").select("date, slot, step").eq("family_id", familyId).eq("date", now.date),
-    sb.from("snoozes").select("member_id, date, slot, until").eq("date", now.date).in("member_id", data.members.map((m) => m.id)),
+    sb.from("notification_log").select("date, slot, step").eq("family_id", familyId).eq("calendar_id", cal).eq("date", now.date),
+    sb.from("snoozes").select("member_id, date, slot, until").eq("calendar_id", cal).eq("date", now.date).in("member_id", data.members.map((m) => m.id)),
   ]);
   const sent = new Set((logRows ?? []).map((r) => `${r.date}|${r.slot}|${r.step}`));
   const snoozes = new Map<string, number>();
@@ -49,7 +61,7 @@ export async function tickFamily(familyId: string) {
     await sb.from("notification_log").upsert(
       plan.markSent.map((k) => {
         const [date, slot, step] = k.split("|");
-        return { family_id: familyId, date, slot, step };
+        return { family_id: familyId, calendar_id: cal, date, slot, step };
       }),
       { ignoreDuplicates: true },
     );
@@ -60,8 +72,8 @@ export async function tickFamily(familyId: string) {
     result.pushes += await sendToMembers(
       familyId,
       p.to,
-      { title: p.title, body: p.body, urgent: p.urgent, tag: `walk-${p.date}-${timeToMinutes(p.slot)}` },
-      { date: p.date, slot: p.slot, actionableFor: owner },
+      { title: p.title, body: p.body, urgent: p.urgent, tag: `walk-${cal}-${p.date}-${timeToMinutes(p.slot)}` },
+      { date: p.date, slot: p.slot, calendarId: cal, actionableFor: owner },
     );
   }
   return result;

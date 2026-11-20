@@ -13,18 +13,26 @@ function configure() {
   configured = true;
 }
 
+export interface TurnRef {
+  familyId: string;
+  memberId: string;
+  date: string;
+  slot: string;
+  calendarId?: string;
+}
+
 export interface PushPayload {
   title: string;
   body: string;
   tag?: string;
   urgent?: boolean;
   url?: string;
-  turn?: { familyId: string; memberId: string; date: string; slot: string };
+  turn?: TurnRef;
   token?: string;
 }
 
 /** Envía a todos los celulares de esos miembros. Borra suscripciones vencidas. */
-export async function sendToMembers(familyId: string, memberIds: string[], payload: Omit<PushPayload, "token" | "turn">, turn?: { date: string; slot: string; actionableFor?: string }) {
+export async function sendToMembers(familyId: string, memberIds: string[], payload: Omit<PushPayload, "token" | "turn">, turn?: { date: string; slot: string; calendarId?: string; actionableFor?: string }) {
   if (memberIds.length === 0) return 0;
   configure();
   const sb = adminClient();
@@ -36,7 +44,10 @@ export async function sendToMembers(familyId: string, memberIds: string[], paylo
       const body: PushPayload = {
         ...payload,
         ...(withActions
-          ? { turn: { familyId, memberId: s.member_id, date: turn.date, slot: turn.slot }, token: signTurn(familyId, s.member_id, turn.date, turn.slot) }
+          ? (() => {
+              const ref: TurnRef = { familyId, memberId: s.member_id, date: turn.date, slot: turn.slot, calendarId: turn.calendarId ?? "main" };
+              return { turn: ref, token: signTurn(ref) };
+            })()
           : {}),
       };
       try {
@@ -61,12 +72,14 @@ function secret() {
   return s;
 }
 
-export function signTurn(familyId: string, memberId: string, date: string, slot: string) {
-  return createHmac("sha256", secret()).update(`${familyId}|${memberId}|${date}|${slot}`).digest("base64url");
+export function signTurn(t: TurnRef) {
+  return createHmac("sha256", secret())
+    .update(`${t.familyId}|${t.memberId}|${t.date}|${t.slot}|${t.calendarId ?? "main"}`)
+    .digest("base64url");
 }
 
-export function verifyTurn(t: { familyId: string; memberId: string; date: string; slot: string }, token: string) {
-  const expected = Buffer.from(signTurn(t.familyId, t.memberId, t.date, t.slot));
+export function verifyTurn(t: TurnRef, token: string) {
+  const expected = Buffer.from(signTurn(t));
   const got = Buffer.from(token);
   return expected.length === got.length && timingSafeEqual(expected, got);
 }

@@ -1,3 +1,4 @@
+import { calendarView, calOf } from "@/lib/domain/calendars";
 import { nowInZone, whenPhrase } from "@/lib/domain/dates";
 import { loadFamilyServer, memberFromToken } from "@/lib/server/admin";
 import { sendToMembers } from "@/lib/server/push";
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
   const data = await loadFamilyServer(me.familyId);
   const today = nowInZone(data.family.timeZone).date;
   const name = (id: string | null | undefined) => data.members.find((m) => m.id === id)?.name ?? "Alguien";
-  const dog = data.family.dogName;
+  const dogOf = (x: { calendarId?: string }) => calendarView(data, calOf(x)).family.dogName;
   const when = (d: string) => whenPhrase(d, today);
   let sent = 0;
 
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
 
   if (body.type === "overrides" && body.ids?.length) {
     for (const o of data.overrides.filter((x) => body.ids!.includes(x.id))) {
+      const dog = dogOf(o);
       if (o.kind === "exception" && o.fromMemberId) {
         if (o.memberId) {
           sent += await sendToMembers(me.familyId, [o.memberId], {

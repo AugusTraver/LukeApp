@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Check, Clock, Hand, Pin, Scale, Settings2, UserX } from "lucide-react";
+import { ArrowLeftRight, Check, Clock, Hand, Luggage, Pin, Scale, Settings2, UserX } from "lucide-react";
 import { useState } from "react";
 import { cap, friendlyDate, longDate, timeToMinutes } from "@/lib/domain/dates";
 import type { Swap, Turn } from "@/lib/domain/types";
@@ -63,7 +63,9 @@ export function DeclineSheet({ turn, onClose, toast }: { turn: Turn | null; onCl
 export function SwapInbox() {
   const f = useFamily();
   const [busy, setBusy] = useState(false);
-  const pending = f.data.swaps.filter((s) => s.status === "pending" && s.backDate >= f.now.date);
+  // Pedidos de cambio de todos los perros (no solo del que se está viendo).
+  const pending = f.full.swaps.filter((s) => s.status === "pending" && s.backDate >= f.now.date);
+  const dogOf = (s: Swap) => (f.calendars.length > 1 ? f.calendars.find((c) => c.calendar.id === (s.calendarId ?? "main"))?.name : null);
   const incoming = pending.filter((s) => s.partnerId === f.me.id);
   const outgoing = pending.filter((s) => s.proposerId === f.me.id);
   if (incoming.length + outgoing.length === 0) return null;
@@ -83,7 +85,9 @@ export function SwapInbox() {
           <div key={s.id} className="card p-5 ring-2 ring-sun">
             <div className="flex items-center gap-3">
               <Avatar member={p} size={44} />
-              <p className="font-semibold text-lg leading-snug">{p?.name} te pide cambiar un día</p>
+              <p className="font-semibold text-lg leading-snug">
+                {p?.name} te pide cambiar un día{dogOf(s) ? ` (${dogOf(s)})` : ""}
+              </p>
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-2">
               <div className="rounded-2xl bg-sunken p-3">
@@ -128,7 +132,12 @@ export function TurnTags({ turn }: { turn: Turn }) {
   const f = useFamily();
   return (
     <>
-      {turn.isFixed && <Tag icon={<Pin size={13} />}>Día fijo</Tag>}
+      {turn.isFixed && !turn.coverFor && <Tag icon={<Pin size={13} />}>Día fijo</Tag>}
+      {turn.coverFor && (
+        <Tag tone="pine" icon={<Luggage size={13} />}>
+          {f.member(turn.coverFor)?.name ?? "Alguien"} de viaje
+        </Tag>
+      )}
       {turn.override?.kind === "debt" && (
         <Tag tone="sun" icon={<Scale size={13} />}>
           Deuda

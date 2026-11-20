@@ -53,6 +53,8 @@ export function planPushes(
 ): { pushes: PlannedPush[]; markSent: string[] } {
   const { family, members } = data;
   const dog = family.dogName;
+  // Varios perros que salen juntos: "Luke y Mora".
+  const many = / y /.test(dog);
   const pushes: PlannedPush[] = [];
   const markSent: string[] = [];
   const turns = buildTurns(data, now.date, now.date, now);
@@ -73,34 +75,35 @@ export function planPushes(
     for (const s of latest.values()) {
       if (since - s.at > 30) continue; // muy viejo (el servidor estuvo caído): no molestar
       if (s.to === "assignee" && s.repeat && snooze !== undefined && now.minutes < snooze) continue;
-      const p = render(s, t, dog, name, walkersIds, watchers);
+      const p = render(s, t, dog, many, name, walkersIds, watchers);
       if (p) pushes.push(p);
     }
   }
   return { pushes, markSent };
 }
 
-function render(s: Step, t: Turn, dog: string, name: (id: string | null) => string, walkers: string[], watchers: string[]): PlannedPush | null {
+function render(s: Step, t: Turn, dog: string, many: boolean, name: (id: string | null) => string, walkers: string[], watchers: string[]): PlannedPush | null {
   const base = { date: t.date, slot: t.slot, step: s.key, urgent: s.urgent };
+  const v = (one: string, several: string) => (many ? several : one);
   const who = t.memberId;
   if (!who) {
     // Turno sin responsable: se avisa a todos los que pasean a la hora del paseo.
     if (s.key !== "pre" && s.key !== "now" && s.key !== "others") return null;
-    return { ...base, to: walkers, title: `Nadie puede sacar a ${dog}`, body: `Es a las ${t.slot}. ¿Lo podés sacar vos? Abrí la app.`, actionable: false };
+    return { ...base, to: walkers, title: `Nadie puede sacar a ${dog}`, body: `Es a las ${t.slot}. ¿${v("Lo", "Los")} podés sacar vos? Abrí la app.`, actionable: false };
   }
   const n = name(who);
   switch (s.to) {
     case "assignee":
-      if (s.key === "pre") return { ...base, to: [who], title: `En 10 minutos, ${dog} te espera`, body: `${n}, hoy te toca a las ${t.slot}.`, actionable: false };
-      if (s.key === "now") return { ...base, to: [who], title: `¡Es hora del paseo de ${dog}!`, body: `${n}, sacalo y tocá “Ya lo saqué”.`, actionable: true };
-      if (s.key === "late") return { ...base, to: [who], title: `${dog} sigue esperando`, body: `${n}, todavía no confirmaste el paseo de las ${t.slot}. Si ya lo sacaste, tocá “Ya lo saqué”.`, actionable: true };
-      return { ...base, to: [who], title: `${dog} te mira con la correa en la boca`, body: `${n}, ¿ya lo sacaste? Confirmalo para que dejemos de insistir.`, actionable: true };
+      if (s.key === "pre") return { ...base, to: [who], title: `En 10 minutos, ${dog} te ${v("espera", "esperan")}`, body: `${n}, hoy te toca a las ${t.slot}.`, actionable: false };
+      if (s.key === "now") return { ...base, to: [who], title: `¡Es hora del paseo de ${dog}!`, body: `${n}, ${v("sacalo", "sacalos")} y tocá “Ya lo saqué”.`, actionable: true };
+      if (s.key === "late") return { ...base, to: [who], title: `${dog} ${v("sigue", "siguen")} esperando`, body: `${n}, todavía no confirmaste el paseo de las ${t.slot}. Si ya ${v("lo", "los")} sacaste, tocá “Ya lo saqué”.`, actionable: true };
+      return { ...base, to: [who], title: `${dog} te ${v("mira", "miran")} con la correa en la boca`, body: `${n}, ¿ya ${v("lo", "los")} sacaste? Confirmalo para que dejemos de insistir.`, actionable: true };
     case "walkers": {
       const others = walkers.filter((id) => id !== who);
-      return { ...base, to: [...others, who], title: `${dog} todavía no salió`, body: `A ${n} le tocaba a las ${t.slot} y no confirmó. ¿Alguien lo puede sacar?`, actionable: false };
+      return { ...base, to: [...others, who], title: `${dog} todavía no ${v("salió", "salieron")}`, body: `A ${n} le tocaba a las ${t.slot} y no confirmó. ¿Alguien ${v("lo", "los")} puede sacar?`, actionable: false };
     }
     case "watchers":
-      return watchers.length ? { ...base, to: watchers, title: `${dog} no salió a pasear`, body: `A ${n} le tocaba a las ${t.slot} y todavía no lo confirmó.`, actionable: false } : null;
+      return watchers.length ? { ...base, to: watchers, title: `${dog} no ${v("salió", "salieron")} a pasear`, body: `A ${n} le tocaba a las ${t.slot} y todavía no lo confirmó.`, actionable: false } : null;
     default:
       return null;
   }

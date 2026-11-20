@@ -1,6 +1,7 @@
 // Modo Supabase: datos compartidos entre todos los celulares de la familia.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Confirmation, Family, FamilyData, Member, Override, Swap } from "../domain/types";
+import { storedFamily } from "../domain/calendars";
+import type { Absence, Confirmation, Family, FamilyData, Member, Override, Swap } from "../domain/types";
 import { StoreError, type FamilyPreview, type NewFamilyInput, type Session, type Store } from "./types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- filas de la API de datos */
@@ -18,7 +19,10 @@ export const famFromRow = (r: any): Family => ({
   startDate: r.start_date,
   settings: { penalty: r.penalty, insistent: r.insistent },
   joinCode: r.join_code,
+  dogs: Array.isArray(r.dogs) && r.dogs.length ? r.dogs : undefined,
+  calendars: Array.isArray(r.calendars) ? r.calendars : [],
 });
+export const absenceFromRow = (r: any): Absence => ({ id: r.id, memberId: r.member_id, from: r.from_date, to: r.to_date, reason: r.reason ?? undefined, createdAt: r.created_at });
 export const memberFromRow = (r: any): Member => ({ id: r.id, name: r.name, avatar: r.avatar, color: r.color, role: r.role, walks: r.walks });
 export const overrideFromRow = (r: any): Override => ({
   id: r.id,
@@ -32,6 +36,7 @@ export const overrideFromRow = (r: any): Override => ({
   missedDate: r.missed_date ?? undefined,
   missedSlot: r.missed_slot ?? undefined,
   swapId: r.swap_id ?? undefined,
+  calendarId: r.calendar_id ?? "main",
 });
 export const swapFromRow = (r: any): Swap => ({
   id: r.id,
@@ -44,8 +49,9 @@ export const swapFromRow = (r: any): Swap => ({
   reason: r.reason,
   status: r.status,
   createdAt: r.created_at,
+  calendarId: r.calendar_id ?? "main",
 });
-export const confFromRow = (r: any): Confirmation => ({ id: r.id, date: r.date, slot: r.slot, walkedBy: r.walked_by, at: r.at, mood: r.mood ?? undefined });
+export const confFromRow = (r: any): Confirmation => ({ id: r.id, date: r.date, slot: r.slot, walkedBy: r.walked_by, at: r.at, mood: r.mood ?? undefined, calendarId: r.calendar_id ?? "main" });
 
 function fail(error: { message: string } | null, friendly?: string): void {
   if (!error) return;
@@ -113,6 +119,26 @@ export class SupabaseStore implements Store {
     return s;
   }
 
+  async requestPasswordReset(email: string) {
+    const { error } = await this.sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${location.origin}/?recuperar=1` });
+    fail(error, error?.status === 429 ? "Ya te mandamos un email hace poco. Esperá unos minutos." : "No pudimos mandar el email. Revisá la dirección.");
+  }
+
+  async updatePassword(password: string): Promise<Session> {
+    const { error } = await this.sb.auth.updateUser({ password });
+    fail(error, error?.message.includes("different") ? "Elegí una contraseña distinta a la anterior." : "No se pudo cambiar la contraseña. Pedí otro email.");
+    const s = await this.getSession();
+    if (!s) throw new StoreError("Esta cuenta no tiene una familia.");
+    return s;
+  }
+
+  onPasswordRecovery(cb: () => void) {
+    const { data } = this.sb.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") cb();
+    });
+    return () => data.subscription.unsubscribe();
+  }
+
   async previewFamily(joinCode: string): Promise<FamilyPreview | null> {
     await this.ensureUser();
     const { data, error } = await this.sb.rpc("preview_family", { code: joinCode });
@@ -130,20 +156,23 @@ export class SupabaseStore implements Store {
 
   async load(familyId: string): Promise<FamilyData> {
     const since = new Date(Date.now() - 120 * 86_400_000).toISOString().slice(0, 10);
-    const [f, m, o, s, c] = await Promise.all([
-      this.sb.from("families").select("*").eq("id", familyId).single(),
+    const [f, m, o, s, c, a] = await Promise.all([
+      this.sb.from("families").select("*").eq("id", familyId).maybeSingle(),
       this.sb.from("members").select("*").eq("family_id", familyId).order("created_at"),
       this.sb.from("overrides").select("*").eq("family_id", familyId).gte("date", since),
       this.sb.from("swaps").select("*").eq("family_id", familyId).gte("back_date", since),
       this.sb.from("confirmations").select("*").eq("family_id", familyId).gte("date", since),
+      this.sb.from("absences").select("*").eq("family_id", familyId).gte("to_date", since),
     ]);
-    for (const r of [f, m, o, s, c]) fail(r.error, "No pudimos cargar los datos.");
+    for (const r of [f, m, o, s, c, a]) fail(r.error, "No pudimos cargar los datos.");
+    if (!f.data) throw new StoreError("Esta familia ya no existe.");
     return {
       family: famFromRow(f.data),
       members: m.data!.map(memberFromRow),
       overrides: o.data!.map(overrideFromRow),
       swaps: s.data!.map(swapFromRow),
       confirmations: c.data!.map(confFromRow),
+      absences: a.data!.map(absenceFromRow),
     };
   }
 
@@ -160,6 +189,7 @@ export class SupabaseStore implements Store {
       .on("postgres_changes", { event: "*", schema: "public", table: "swaps", filter }, debounced)
       .on("postgres_changes", { event: "*", schema: "public", table: "confirmations", filter }, debounced)
       .on("postgres_changes", { event: "*", schema: "public", table: "members", filter }, debounced)
+      .on("postgres_changes", { event: "*", schema: "public", table: "absences", filter }, debounced)
       .on("postgres_changes", { event: "*", schema: "public", table: "families", filter: `id=eq.${familyId}` }, debounced)
       .subscribe();
     return () => {
@@ -177,7 +207,7 @@ export class SupabaseStore implements Store {
   }
 
   async addConfirmation(familyId: string, c: Confirmation) {
-    const { error } = await this.sb.from("confirmations").insert({ id: c.id, family_id: familyId, date: c.date, slot: c.slot, walked_by: c.walkedBy, mood: c.mood ?? null });
+    const { error } = await this.sb.from("confirmations").insert({ id: c.id, family_id: familyId, calendar_id: c.calendarId ?? "main", date: c.date, slot: c.slot, walked_by: c.walkedBy, mood: c.mood ?? null });
     fail(error, error?.code === "23505" ? "Alguien ya lo confirmó." : "No se pudo confirmar.");
   }
 
@@ -195,6 +225,7 @@ export class SupabaseStore implements Store {
       missed_date: o.missedDate ?? null,
       missed_slot: o.missedSlot ?? null,
       swap_id: o.swapId ?? null,
+      calendar_id: o.calendarId ?? "main",
       created_by: me,
     }));
     // Las deudas pueden llegar duplicadas desde varios celulares: se ignoran.
@@ -220,16 +251,20 @@ export class SupabaseStore implements Store {
       back_slot: s.backSlot,
       reason: s.reason,
       status: s.status,
+      calendar_id: s.calendarId ?? "main",
     };
     const { error } = s.status === "pending" ? await this.sb.from("swaps").insert(row) : await this.sb.from("swaps").update({ status: s.status }).eq("id", s.id);
     fail(error, "No se pudo guardar el intercambio.");
     void this.notify(familyId, { type: "swap", id: s.id });
   }
 
-  async updateFamily(f: Family) {
+  async updateFamily(family: Family) {
+    const f = storedFamily(family);
     const { error } = await this.sb
       .from("families")
       .update({
+        dogs: f.dogs ?? [],
+        calendars: f.calendars ?? [],
         name: f.name,
         dog_name: f.dogName,
         dog_coat: f.dogCoat,
@@ -252,10 +287,33 @@ export class SupabaseStore implements Store {
     return memberFromRow(data);
   }
 
-  async removeMember(familyId: string, memberId: string) {
-    const fam = (await this.load(familyId)).family;
-    await this.updateFamily({ ...fam, rotation: fam.rotation.filter((x) => x !== memberId), fixedDays: fam.fixedDays.map((x) => (x === memberId ? null : x)) });
-    fail((await this.sb.from("members").delete().eq("id", memberId)).error, "No se pudo sacar.");
+  async removeMember(_familyId: string, memberId: string) {
+    const { error } = await this.sb.rpc("remove_member", { member: memberId });
+    fail(error, "No se pudo sacar.");
+  }
+
+  async addAbsence(familyId: string, a: Absence) {
+    const me = await this.myMemberId(familyId);
+    const { error } = await this.sb.from("absences").insert({ id: a.id, family_id: familyId, member_id: a.memberId, from_date: a.from, to_date: a.to, reason: a.reason ?? null, created_by: me });
+    fail(error, "No se pudo guardar.");
+  }
+
+  async removeAbsence(_familyId: string, id: string) {
+    fail((await this.sb.from("absences").delete().eq("id", id)).error, "No se pudo borrar.");
+  }
+
+  async leaveFamily(familyId: string) {
+    const { error } = await this.sb.rpc("leave_family", { fid: familyId });
+    fail(error);
+    this.memberCache.delete(familyId);
+    await this.sb.auth.signOut();
+  }
+
+  async deleteFamily(familyId: string) {
+    const { error } = await this.sb.rpc("delete_family", { fid: familyId });
+    fail(error, "No se pudo borrar la familia.");
+    this.memberCache.delete(familyId);
+    await this.sb.auth.signOut();
   }
 
   async resetPin(_familyId: string, memberId: string) {

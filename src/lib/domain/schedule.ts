@@ -51,6 +51,27 @@ export function key(date: ISODate, slot: HHMM) {
   return `${date}|${slot}`;
 }
 
+/** ¿Esa persona avisó que no está ese día? (vacaciones, viaje) */
+export function isAbsent(data: FamilyData, memberId: string | null | undefined, date: ISODate): boolean {
+  if (!memberId || !data.absences?.length) return false;
+  return data.absences.some((a) => a.memberId === memberId && a.from <= date && date <= a.to);
+}
+
+/**
+ * Quién saca al perro cuando el responsable no está: los paseadores presentes se turnan
+ * en el orden de rotación, de manera pareja día a día. null si no queda nadie.
+ */
+export function absenceCover(data: FamilyData, date: ISODate, slot: HHMM): string | null {
+  const { family } = data;
+  const walkerIds = new Set(data.members.filter((m) => m.walks).map((m) => m.id));
+  const order = [...family.rotation, ...data.members.filter((m) => m.walks && !family.rotation.includes(m.id)).map((m) => m.id)];
+  const present = order.filter((id) => walkerIds.has(id) && !isAbsent(data, id, date));
+  if (present.length === 0) return null;
+  const slots = sortedSlots(family);
+  const step = daysBetween(family.rotationAnchor, date) * slots.length + Math.max(0, slots.indexOf(slot));
+  return present[mod(step, present.length)];
+}
+
 /** Calcula los turnos de un rango de días (incluye ambos extremos). */
 export function buildTurns(data: FamilyData, from: ISODate, to: ISODate, now: Now): Turn[] {
   const { family } = data;
@@ -63,14 +84,20 @@ export function buildTurns(data: FamilyData, from: ISODate, to: ISODate, now: No
     for (const slot of slots) {
       const base = baseAssignee(family, d, slot);
       const override = overrides.get(key(d, slot));
-      const memberId = override ? override.memberId : base.memberId;
+      let memberId = override ? override.memberId : base.memberId;
       const confirmation = confirmations.get(key(d, slot));
+      let coverFor: string | undefined;
+      if (!confirmation && memberId && isAbsent(data, memberId, d)) {
+        coverFor = memberId;
+        memberId = absenceCover(data, d, slot);
+      }
       turns.push({
         date: d,
         slot,
         baseMemberId: base.memberId,
         memberId,
         isFixed: base.isFixed,
+        ...(coverFor ? { coverFor } : {}),
         override,
         confirmation,
         status: statusOf(d, slot, memberId, !!confirmation, now, family.startDate),
@@ -118,7 +145,7 @@ export function pickCover(data: FamilyData, date: ISODate, slot: HHMM, now: Now)
       .map((o) => o.fromMemberId!),
   );
   if (turn.memberId) declined.add(turn.memberId);
-  const candidates = walkers(data).filter((m) => !declined.has(m.id));
+  const candidates = walkers(data).filter((m) => !declined.has(m.id) && !isAbsent(data, m.id, date));
   if (candidates.length === 0) return null;
 
   const window = buildTurns(data, date, addDays(date, 13), now);
@@ -181,7 +208,9 @@ export function missedWithoutDebt(data: FamilyData, now: Now, lookbackDays = 14)
 export function findDebtTarget(data: FamilyData, debtorId: string, now: Now): Turn | null {
   const start = addDays(now.date, 1);
   const turns = buildTurns(data, start, addDays(start, 60), now);
-  return turns.find((t) => t.memberId && t.memberId !== debtorId && !t.confirmation && t.override?.kind !== "debt") ?? null;
+  return (
+    turns.find((t) => t.memberId && t.memberId !== debtorId && !t.confirmation && t.override?.kind !== "debt" && !t.coverFor && !isAbsent(data, debtorId, t.date)) ?? null
+  );
 }
 
 /**

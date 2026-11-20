@@ -4,7 +4,8 @@ import { settleDebts } from "../domain/actions";
 import { addDays, mondayOf, nowInZone } from "../domain/dates";
 import { getTurn } from "../domain/schedule";
 import { augusFamily } from "../domain/seed";
-import type { FamilyData, Member } from "../domain/types";
+import { removeMemberEverywhere, storedFamily } from "../domain/calendars";
+import type { Absence, FamilyData, Member } from "../domain/types";
 import { StoreError, type FamilyPreview, type NewFamilyInput, type Session, type Store } from "./types";
 
 const DB_KEY = "lukeapp.demo.db.v2";
@@ -181,7 +182,7 @@ export class DemoStore implements Store {
 
   async addConfirmation(familyId: string, c: FamilyData["confirmations"][number]) {
     this.mutate(familyId, (d) => {
-      if (d.confirmations.some((x) => x.date === c.date && x.slot === c.slot)) throw new StoreError("Ya estaba confirmado.");
+      if (d.confirmations.some((x) => x.date === c.date && x.slot === c.slot && (x.calendarId ?? "main") === (c.calendarId ?? "main"))) throw new StoreError("Ya estaba confirmado.");
       d.confirmations.push(c);
     });
   }
@@ -200,7 +201,7 @@ export class DemoStore implements Store {
 
   async updateFamily(family: FamilyData["family"]) {
     this.mutate(family.id, (d) => {
-      d.family = family;
+      d.family = storedFamily(family);
     });
   }
 
@@ -217,9 +218,41 @@ export class DemoStore implements Store {
   async removeMember(familyId: string, memberId: string) {
     this.mutate(familyId, (d) => {
       d.members = d.members.filter((m) => m.id !== memberId);
-      d.family.rotation = d.family.rotation.filter((id) => id !== memberId);
-      d.family.fixedDays = d.family.fixedDays.map((id) => (id === memberId ? null : id));
+      d.family = removeMemberEverywhere(d.family, memberId);
+      d.absences = (d.absences ?? []).filter((a) => a.memberId !== memberId);
     });
+  }
+
+  async addAbsence(familyId: string, a: Absence) {
+    this.mutate(familyId, (d) => {
+      d.absences = [...(d.absences ?? []), a];
+    });
+  }
+
+  async removeAbsence(familyId: string, id: string) {
+    this.mutate(familyId, (d) => {
+      d.absences = (d.absences ?? []).filter((a) => a.id !== id);
+    });
+  }
+
+  async leaveFamily(familyId: string) {
+    const s = await this.getSession();
+    if (!s) return;
+    const data = this.read().families[familyId];
+    const me = data?.members.find((m) => m.id === s.memberId);
+    if (me?.role === "admin" && !data.members.some((m) => m.role === "admin" && m.id !== me.id))
+      throw new StoreError("Sos quien administra la familia: para irte, borrala desde Reglas de la familia.");
+    await this.removeMember(familyId, s.memberId);
+    await this.signOut();
+  }
+
+  async deleteFamily(familyId: string) {
+    const db = this.read();
+    delete db.families[familyId];
+    // Sin familias, la próxima vez se vuelve a crear la de ejemplo.
+    if (Object.keys(db.families).length === 0) safeSet(DB_KEY, null);
+    else this.write(db);
+    await this.signOut();
   }
 
   async resetPin(_familyId: string, memberId: string) {

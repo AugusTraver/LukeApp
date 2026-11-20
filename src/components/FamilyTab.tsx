@@ -1,32 +1,61 @@
 "use client";
 
-import { Bell, CalendarDays, ChevronRight, CircleHelp, Copy, KeyRound, LogOut, Plus, Scale, Settings2, Share2, Trash2, X } from "lucide-react";
+import {
+  Bell,
+  CalendarDays,
+  ChevronRight,
+  CircleHelp,
+  Copy,
+  DoorOpen,
+  KeyRound,
+  LogOut,
+  Luggage,
+  Plus,
+  Route,
+  Scale,
+  Settings2,
+  Share2,
+  Smartphone,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { useState } from "react";
-import { dayName } from "@/lib/domain/dates";
-import type { Family, Member } from "@/lib/domain/types";
+import { activeCalendars, allCalendars, allDogs, joinNames, newCalendarFrom, setWalksEverywhere, withCalendars } from "@/lib/domain/calendars";
+import { addDays, dayName } from "@/lib/domain/dates";
+import { MAIN, type Calendar, type Dog as DogT, type Family, type Member } from "@/lib/domain/types";
 import { useFamily } from "@/lib/useFamily";
 import { Avatar } from "./Avatar";
 import { BallGame } from "./BallGame";
-import { Dog, type DogCoat } from "./Dog";
-import { CoatPicker, Field, FixedDaysEditor, TimesEditor } from "./form";
-import { NotificationsCard } from "./Notifications";
+import { Dog, DogPack, type DogCoat } from "./Dog";
+import { CoatPicker, Field, FixedDaysEditor, Segmented, TimesEditor } from "./form";
+import { InstallSheet, NotificationsCard } from "./Notifications";
 import { MemberEditor, newDraft } from "./Onboarding";
 import { IconBadge, Sheet } from "./ui";
 
+type SheetId = null | "how" | "game" | "settings" | "away" | "install" | "leave" | { member: Member | null };
+
+const ddmm = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
+
 export function FamilyTab({ toast }: { toast: (m: string) => void }) {
   const f = useFamily();
-  const { data, me, isAdmin } = f;
-  const [sheet, setSheet] = useState<null | "how" | "game" | "settings" | { member: Member | null }>(null);
-  const coat = data.family.dogCoat as DogCoat;
+  const { data, full, me, isAdmin } = f;
+  const [sheet, setSheet] = useState<SheetId>(null);
+  const cals = activeCalendars(full.family);
+  const dogs = allDogs(full.family);
+  const allNames = joinNames(dogs.map((d) => d.name));
+  const awayNow = (full.absences ?? []).filter((a) => a.to >= f.now.date);
 
   const roleText = (m: Member) => {
     const fixed = data.family.fixedDays.map((x, i) => (x === m.id ? dayName(i) : null)).filter(Boolean);
-    const base = m.role === "admin" ? (m.walks ? "Admin, lo saca" : "Admin") : m.walks ? "Lo saca" : "Solo mira";
-    return fixed.length ? `${base}. Fijo los ${fixed.join(" y ")}` : base;
+    const base = m.role === "admin" ? (m.walks ? "Admin, pasea" : "Admin") : m.walks ? "Pasea" : "Solo mira";
+    const away = awayNow.find((a) => a.memberId === m.id);
+    const extra = away ? `. De viaje ${away.from <= f.now.date ? "hasta el" : `del ${ddmm(away.from)} al`} ${ddmm(away.to)}` : fixed.length ? `. Fijo los ${fixed.join(" y ")}` : "";
+    return base + extra;
   };
 
   async function share() {
-    const text = `Sumate a ${data.family.name} en LukeApp para organizar los paseos de ${data.family.dogName}.\nCódigo: ${data.family.joinCode}\n${location.origin}`;
+    const text = `Sumate a ${data.family.name} en LukeApp para organizar los paseos de ${allNames}.\nCódigo: ${data.family.joinCode}\n${location.origin}`;
     try {
       if (navigator.share) await navigator.share({ title: "LukeApp", text });
       else {
@@ -41,14 +70,16 @@ export function FamilyTab({ toast }: { toast: (m: string) => void }) {
   return (
     <div className="flex flex-col gap-5">
       <header className="pt-3 flex items-center gap-4">
-        <span className="h-20 w-20 rounded-full bg-pine flex items-end justify-center overflow-hidden shrink-0">
-          <Dog mood="happy" coat={coat} size={92} sun={false} className="translate-y-2" />
+        <span className="h-20 min-w-20 px-1 rounded-full bg-pine flex items-end justify-center overflow-hidden shrink-0">
+          <DogPack coats={dogs.map((d) => d.coat)} size={dogs.length > 1 ? 80 : 92} sun={false} className="translate-y-2" />
         </span>
         <div className="min-w-0">
-          <h1 className="display text-[2rem] truncate">{data.family.name}</h1>
-          <p className="text-ink-2">
-            {data.family.dogName} sale a las {data.family.walkTimes.join(" y a las ")}
-          </p>
+          <h1 className="display text-[1.85rem] leading-tight">{data.family.name}</h1>
+          {cals.map((c) => (
+            <p key={c.calendar.id} className="text-ink-2">
+              {c.name} {c.dogs.length > 1 ? "salen" : "sale"} a las {c.calendar.walkTimes.join(" y a las ")}
+            </p>
+          ))}
         </div>
       </header>
 
@@ -93,7 +124,7 @@ export function FamilyTab({ toast }: { toast: (m: string) => void }) {
         </ul>
         {isAdmin && (
           <div className="p-4 pt-2">
-            <button className="btn btn-soft w-full" onClick={() => setSheet({ member: null })}>
+            <button className="btn btn-dashed w-full" onClick={() => setSheet({ member: null })}>
               <Plus size={18} /> Sumar a alguien
             </button>
           </div>
@@ -101,10 +132,16 @@ export function FamilyTab({ toast }: { toast: (m: string) => void }) {
       </section>
 
       <section className="card overflow-hidden divide-y divide-line">
-        <Row icon={<Dog mood="happy" coat={coat} size={30} sun={false} />} label={`Jugar con ${data.family.dogName}`} onClick={() => setSheet("game")} />
+        {(me.walks || isAdmin) && <Row icon={<Luggage size={20} />} label="Vacaciones o días que no estoy" onClick={() => setSheet("away")} />}
+        {isAdmin && <Row icon={<Settings2 size={20} />} label="Perros, horarios y reglas" onClick={() => setSheet("settings")} />}
+        <Row icon={<Smartphone size={20} />} label="Instalar la app en el celular" onClick={() => setSheet("install")} />
+        <Row icon={<Dog mood="happy" coat={data.family.dogCoat as DogCoat} size={30} sun={false} />} label={`Jugar con ${data.family.dogName}`} onClick={() => setSheet("game")} />
         <Row icon={<CircleHelp size={20} />} label="¿Cómo funciona?" onClick={() => setSheet("how")} />
-        {isAdmin && <Row icon={<Settings2 size={20} />} label="Horarios, días fijos y reglas" onClick={() => setSheet("settings")} />}
-        <Row icon={<LogOut size={20} />} label="Salir o cambiar de persona" onClick={() => void f.signOut()} />
+      </section>
+
+      <section className="card overflow-hidden divide-y divide-line">
+        <Row icon={<LogOut size={20} />} label="Cerrar sesión en este celular" onClick={() => void f.signOut()} />
+        <Row icon={<DoorOpen size={20} />} label="Salir de la familia" onClick={() => setSheet("leave")} danger />
       </section>
 
       <Sheet open={sheet === "how"} onClose={() => setSheet(null)} title="¿Cómo funciona?">
@@ -120,17 +157,20 @@ export function FamilyTab({ toast }: { toast: (m: string) => void }) {
       <Sheet open={sheet === "game"} onClose={() => setSheet(null)} title={`Jugá con ${data.family.dogName}`}>
         <BallGame />
       </Sheet>
+      <InstallSheet open={sheet === "install"} onClose={() => setSheet(null)} />
       {sheet === "settings" && <SettingsSheet onClose={() => setSheet(null)} toast={toast} />}
+      {sheet === "away" && <AwaySheet onClose={() => setSheet(null)} toast={toast} />}
+      {sheet === "leave" && <LeaveSheet onClose={() => setSheet(null)} />}
       {typeof sheet === "object" && sheet !== null && <MemberSheet member={sheet.member} onClose={() => setSheet(null)} toast={toast} />}
     </div>
   );
 }
 
-function Row({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function Row({ icon, label, onClick, danger = false }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
   return (
     <button className="tap w-full flex items-center gap-3.5 px-5 py-4 text-left active:bg-sunken" onClick={onClick}>
-      <span className="h-9 w-9 rounded-full bg-pine-soft text-pine flex items-center justify-center shrink-0 overflow-hidden">{icon}</span>
-      <span className="flex-1 font-medium">{label}</span>
+      <span className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden ${danger ? "bg-clay-soft text-clay" : "bg-pine-soft text-pine"}`}>{icon}</span>
+      <span className={`flex-1 font-medium ${danger ? "text-clay" : ""}`}>{label}</span>
       <ChevronRight size={20} className="text-ink-3" />
     </button>
   );
@@ -142,6 +182,7 @@ function HowItWorks({ family }: { family: Family }) {
     [<Bell key="b" size={20} />, "Te avisamos", "10 minutos antes y a la hora. Si no confirmás, insistimos hasta que lo hagas."],
     [<Dog key="d" mood="happy" coat={family.dogCoat as DogCoat} size={30} sun={false} />, "Lo sacás y lo confirmás", "Tocás “Ya lo saqué” y toda la familia lo ve."],
     [<X key="x" size={20} />, "¿No podés? Avisá antes", "El paseo pasa en el momento a otra persona. También podés pedir cambiar el día."],
+    [<Luggage key="l" size={20} />, "¿Te vas de viaje?", "Cargá los días que no estás. Tus turnos se reparten entre los demás y no cuentan como falta."],
     ...(family.settings.penalty
       ? ([[<Scale key="s" size={20} />, "Si nadie lo confirma", `Quien faltó saca a ${family.dogName} en el próximo turno de otra persona: es el paseo de deuda.`]] as [React.ReactNode, string, string][])
       : []),
@@ -161,22 +202,21 @@ function HowItWorks({ family }: { family: Family }) {
   );
 }
 
+/* ================= Integrante ================= */
+
 function MemberSheet({ member, onClose, toast }: { member: Member | null; onClose: () => void; toast: (m: string) => void }) {
   const f = useFamily();
   const isNew = !member;
-  const [draft, setDraft] = useState<Omit<Member, "id">>(member ?? newDraft(f.data.members.length));
+  const [draft, setDraft] = useState<Omit<Member, "id">>(member ?? newDraft(f.full.members.length));
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const isMe = member?.id === f.me.id;
 
   async function save() {
     setBusy(true);
     try {
-      const saved = await f.store.saveMember(f.data.family.id, { ...draft, id: member?.id ?? "", name: draft.name.trim() });
-      const fam = f.data.family;
-      const inRotation = fam.rotation.includes(saved.id);
-      if (saved.walks && !inRotation) await f.store.updateFamily({ ...fam, rotation: [...fam.rotation, saved.id] });
-      if (!saved.walks && inRotation)
-        await f.store.updateFamily({ ...fam, rotation: fam.rotation.filter((x) => x !== saved.id), fixedDays: fam.fixedDays.map((x) => (x === saved.id ? null : x)) });
+      const saved = await f.store.saveMember(f.full.family.id, { ...draft, id: member?.id ?? "", name: draft.name.trim() });
+      await f.store.updateFamily(setWalksEverywhere(f.full.family, saved.id, saved.walks));
       await f.reload();
       toast(isNew ? `Listo. Pasale el código a ${saved.name}.` : "Cambios guardados.");
       onClose();
@@ -193,69 +233,376 @@ function MemberSheet({ member, onClose, toast }: { member: Member | null; onClos
       <button className="btn btn-primary btn-lg mt-5" disabled={!draft.name.trim() || busy} onClick={() => void save()}>
         Guardar
       </button>
-      {!isNew && !isMe && (
+      {!isNew && !isMe && !removing && (
         <div className="flex flex-col gap-1 mt-4">
           <button
             className="btn btn-ghost"
             onClick={async () => {
-              await f.store.resetPin(f.data.family.id, member.id);
+              await f.store.resetPin(f.full.family.id, member.id);
               toast(`${member.name} va a poder crear un PIN nuevo.`);
             }}
           >
             <KeyRound size={18} /> Se olvidó el PIN
           </button>
-          <button
-            className="btn btn-danger"
-            onClick={async () => {
-              if (!confirm(`¿Sacar a ${member.name} de la familia?`)) return;
-              await f.store.removeMember(f.data.family.id, member.id);
-              await f.reload();
-              onClose();
-            }}
-          >
+          <button className="btn btn-danger" onClick={() => setRemoving(true)}>
             <Trash2 size={18} /> Sacar de la familia
           </button>
+        </div>
+      )}
+      {removing && member && (
+        <div className="mt-5 rounded-2xl bg-clay-soft p-4">
+          <p className="font-semibold">¿Sacar a {member.name}?</p>
+          <p className="text-ink-2 mt-1">Deja de ver la familia y sus turnos se reparten entre los demás. Su historial de paseos se mantiene.</p>
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <button className="btn btn-outline" onClick={() => setRemoving(false)}>
+              Cancelar
+            </button>
+            <button
+              className="btn !bg-clay !text-white"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await f.store.removeMember(f.full.family.id, member.id);
+                  await f.reload();
+                  toast(`${member.name} ya no está en la familia.`);
+                  onClose();
+                } catch (e) {
+                  toast(e instanceof Error ? e.message : "No se pudo sacar.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Sacar
+            </button>
+          </div>
         </div>
       )}
     </Sheet>
   );
 }
 
+/* ================= Vacaciones / no estoy ================= */
+
+const REASONS = ["Vacaciones", "Viaje", "Trabajo", "Enfermedad"];
+
+function AwaySheet({ onClose, toast }: { onClose: () => void; toast: (m: string) => void }) {
+  const f = useFamily();
+  const { full, me, isAdmin, now } = f;
+  const walkers = full.members.filter((m) => m.walks);
+  const [who, setWho] = useState(me.walks ? me.id : (walkers[0]?.id ?? me.id));
+  const [from, setFrom] = useState(addDays(now.date, 1));
+  const [to, setTo] = useState(addDays(now.date, 7));
+  const [reason, setReason] = useState("Vacaciones");
+  const [busy, setBusy] = useState(false);
+  const list = (full.absences ?? []).filter((a) => a.to >= now.date).sort((a, b) => a.from.localeCompare(b.from));
+  const days = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+  const valid = from && to && to >= from && to >= now.date && days <= 121;
+
+  return (
+    <Sheet open onClose={onClose} title="Días que no estoy">
+      <p className="text-ink-2">Esos días los turnos se reparten entre los demás y no cuentan como falta. Nadie tiene que hacer cambios a mano.</p>
+
+      {list.length > 0 && (
+        <ul className="card divide-y divide-line mt-5">
+          {list.map((a) => {
+            const m = f.member(a.memberId);
+            const canDelete = a.memberId === me.id || isAdmin;
+            return (
+              <li key={a.id} className="flex items-center gap-3 px-4 py-3">
+                <Avatar member={m} size={40} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold">{m?.id === me.id ? "Vos" : (m?.name ?? "Alguien")}</p>
+                  <p className="text-[0.9375rem] text-ink-3">
+                    {a.from === a.to ? `El ${ddmm(a.from)}` : `Del ${ddmm(a.from)} al ${ddmm(a.to)}`}
+                    {a.reason ? `. ${a.reason}` : ""}
+                  </p>
+                </div>
+                {canDelete && (
+                  <button
+                    className="tap h-10 w-10 rounded-full text-ink-3 flex items-center justify-center"
+                    aria-label="Borrar"
+                    onClick={() => void f.removeAbsence(a.id).then(() => toast("Listo, se borró."), (e) => toast(e instanceof Error ? e.message : "No se pudo borrar."))}
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <h3 className="display text-[1.5rem] mt-7">Avisar que no estoy</h3>
+      <div className="flex flex-col gap-5 mt-4">
+        {isAdmin && walkers.length > 1 && (
+          <div>
+            <p className="label">¿Quién?</p>
+            <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
+              {walkers.map((m) => (
+                <button key={m.id} type="button" className="option shrink-0 !pl-1.5" aria-pressed={who === m.id} onClick={() => setWho(m.id)}>
+                  <Avatar member={m} size={30} /> {m.id === me.id ? "Yo" : m.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Desde">
+            <input
+              type="date"
+              className="field tabular-nums"
+              value={from}
+              min={now.date}
+              onChange={(e) => {
+                setFrom(e.target.value);
+                if (to < e.target.value) setTo(e.target.value);
+              }}
+            />
+          </Field>
+          <Field label="Hasta">
+            <input type="date" className="field tabular-nums" value={to} min={from || now.date} onChange={(e) => setTo(e.target.value)} />
+          </Field>
+        </div>
+        <div>
+          <p className="label">Motivo (opcional)</p>
+          <div className="flex flex-wrap gap-2">
+            {REASONS.map((r) => (
+              <button key={r} type="button" className="option" aria-pressed={reason === r} onClick={() => setReason(reason === r ? "" : r)}>
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button
+          className="btn btn-primary btn-lg"
+          disabled={!valid || busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await f.addAbsence(who, from, to, reason);
+              toast(who === me.id ? "Listo. Tus turnos de esos días ya se repartieron." : `Listo. Los turnos de ${f.member(who)?.name} de esos días ya se repartieron.`);
+              onClose();
+            } catch (e) {
+              toast(e instanceof Error ? e.message : "No se pudo guardar.");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Guardar {valid ? `(${days} ${days === 1 ? "día" : "días"})` : ""}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+/* ================= Salir / borrar ================= */
+
+function LeaveSheet({ onClose }: { onClose: () => void }) {
+  const f = useFamily();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const soleAdmin = f.isAdmin && !f.full.members.some((m) => m.role === "admin" && m.id !== f.me.id);
+  return (
+    <Sheet open onClose={onClose} title="Salir de la familia">
+      {soleAdmin ? (
+        <>
+          <p className="text-ink-2">Sos quien administra la familia. Si te vas, nadie podría cambiar las reglas.</p>
+          <p className="text-ink-2 mt-3">
+            Si ya no la van a usar, podés borrarla desde <span className="font-semibold text-ink">Perros, horarios y reglas</span>, al final.
+          </p>
+          <button className="btn btn-outline btn-lg mt-6" onClick={onClose}>
+            Entendido
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="text-ink-2">Vas a dejar de ver los paseos de {joinNames(allDogs(f.full.family).map((d) => d.name))}. Tus turnos se reparten entre los demás y tu historial de paseos queda guardado.</p>
+          <p className="text-ink-2 mt-3">Para volver, alguien te tiene que pasar el código otra vez.</p>
+          {error && (
+            <p className="mt-4 font-medium text-clay" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="flex flex-col gap-2 mt-6">
+            <button
+              className="btn btn-lg !bg-clay !text-white"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  await f.leave();
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "No se pudo salir.");
+                  setBusy(false);
+                }
+              }}
+            >
+              <DoorOpen size={19} /> Salir de la familia
+            </button>
+            <button className="btn btn-ghost" onClick={onClose}>
+              Me quedo
+            </button>
+          </div>
+        </>
+      )}
+    </Sheet>
+  );
+}
+
+function DeleteFamily() {
+  const f = useFamily();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ok = text.trim().toUpperCase() === "BORRAR";
+  return (
+    <div className="rounded-2xl ring-1 ring-clay/25 p-4">
+      <p className="font-semibold text-clay">Borrar la familia</p>
+      <p className="text-ink-2 text-[0.9375rem] mt-1">Se borra todo para todos: integrantes, turnos, avisos e historial. No se puede deshacer.</p>
+      {!open ? (
+        <button className="btn btn-danger !px-0 mt-1" onClick={() => setOpen(true)}>
+          <Trash2 size={18} /> Quiero borrarla
+        </button>
+      ) : (
+        <div className="mt-4 flex flex-col gap-3">
+          <Field label="Escribí BORRAR para confirmar">
+            <input className="field uppercase tracking-wider" value={text} onChange={(e) => setText(e.target.value)} autoCapitalize="characters" autoComplete="off" />
+          </Field>
+          {error && (
+            <p className="font-medium text-clay" role="alert">
+              {error}
+            </p>
+          )}
+          <button
+            className="btn btn-lg !bg-clay !text-white"
+            disabled={!ok || busy}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                await f.deleteFamily();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "No se pudo borrar.");
+                setBusy(false);
+              }
+            }}
+          >
+            Borrar para siempre
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================= Perros, horarios y reglas ================= */
+
 function SettingsSheet({ onClose, toast }: { onClose: () => void; toast: (m: string) => void }) {
   const f = useFamily();
-  const [fam, setFam] = useState<Family>(structuredClone(f.data.family));
+  const [fam, setFam] = useState<Family>(() => structuredClone(f.full.family));
+  const [cals, setCals] = useState<Calendar[]>(() => structuredClone(allCalendars(f.full.family)));
+  const [dogs, setDogs] = useState<DogT[]>(() => structuredClone(allDogs(f.full.family)));
+  const [editing, setEditing] = useState<string>(f.calendarId);
   const [busy, setBusy] = useState(false);
-  const walkers = f.data.members.filter((m) => m.walks);
-  const rotation = fam.rotation.filter((id) => walkers.some((w) => w.id === id));
+  const walkers = f.full.members.filter((m) => m.walks);
+
+  // Calendarios en uso (con perros), el principal primero.
+  const used = cals.filter((c) => c.id === MAIN || dogs.some((d) => d.calendarId === c.id));
+  const cal = used.find((c) => c.id === editing) ?? used[0];
+  const calName = (c: Calendar) => joinNames(dogs.filter((d) => d.calendarId === c.id).map((d) => d.name.trim() || "Sin nombre"));
+  const setCal = (p: Partial<Calendar>) => setCals((cs) => cs.map((c) => (c.id === cal.id ? { ...c, ...p } : c)));
+  const rotation = [...cal.rotation.filter((id) => walkers.some((w) => w.id === id)), ...walkers.filter((w) => !cal.rotation.includes(w.id)).map((w) => w.id)];
   const move = (i: number, dir: -1 | 1) => {
     const r = [...rotation];
     const j = i + dir;
     if (j < 0 || j >= r.length) return;
     [r[i], r[j]] = [r[j], r[i]];
-    setFam({ ...fam, rotation: r });
+    setCal({ rotation: r });
+  };
+  const setDog = (id: string, p: Partial<DogT>) => setDogs((ds) => ds.map((d) => (d.id === id ? { ...d, ...p } : d)));
+  const setApart = (d: DogT, apart: boolean) => {
+    if (!apart) return setDog(d.id, { calendarId: MAIN });
+    const id = `cal-${d.id}`;
+    if (!cals.some((c) => c.id === id)) setCals((cs) => [...cs, newCalendarFrom(cs.find((c) => c.id === MAIN)!, id, f.now.date)]);
+    setDog(d.id, { calendarId: id });
   };
   const toggle = (k: keyof Family["settings"]) => setFam({ ...fam, settings: { ...fam.settings, [k]: !fam.settings[k] } });
+  const valid = dogs.every((d) => d.name.trim()) && used.every((c) => c.walkTimes.length > 0);
 
   return (
-    <Sheet open onClose={onClose} title="Reglas de la familia">
+    <Sheet open onClose={onClose} title="Perros, horarios y reglas">
       <div className="flex flex-col gap-7">
-        <Field label="Nombre del perro">
-          <input className="field" value={fam.dogName} onChange={(e) => setFam({ ...fam, dogName: e.target.value })} />
-        </Field>
         <div>
-          <span className="label">Pelaje</span>
-          <CoatPicker compact value={fam.dogCoat as DogCoat} onChange={(c) => setFam({ ...fam, dogCoat: c })} />
+          <span className="label">{dogs.length > 1 ? "Perros" : "Perro"}</span>
+          <div className="flex flex-col gap-3">
+            {dogs.map((d, i) => (
+              <div key={d.id} className="card p-4">
+                <div className="flex items-center gap-2">
+                  <input className="field flex-1 min-w-0 font-medium" value={d.name} onChange={(e) => setDog(d.id, { name: e.target.value })} placeholder="Nombre" aria-label="Nombre del perro" />
+                  {i > 0 && (
+                    <button type="button" className="tap h-11 w-11 shrink-0 rounded-full text-ink-3 flex items-center justify-center" onClick={() => setDogs((ds) => ds.filter((x) => x.id !== d.id))} aria-label={`Quitar a ${d.name}`}>
+                      <Trash2 size={19} />
+                    </button>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <CoatPicker compact value={d.coat as DogCoat} onChange={(c) => setDog(d.id, { coat: c })} />
+                </div>
+                {i > 0 && (
+                  <div className="mt-3">
+                    <Segmented
+                      label="Cómo sale"
+                      value={d.calendarId === MAIN ? "together" : "apart"}
+                      onChange={(v) => setApart(d, v === "apart")}
+                      options={[
+                        { id: "together", label: `Con ${dogs[0].name.trim() || "el primero"}`, icon: <Users size={16} /> },
+                        { id: "apart", label: "Aparte", icon: <Route size={16} /> },
+                      ]}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+            {dogs.length < 6 && (
+              <button
+                type="button"
+                className="btn btn-dashed"
+                onClick={() => setDogs((ds) => [...ds, { id: `dog-${crypto.randomUUID().slice(0, 8)}`, name: "", coat: (["brown", "golden", "gray", "black"] as DogCoat[])[(ds.length - 1) % 4], calendarId: MAIN }])}
+              >
+                <Plus size={18} /> Sumar otro perro
+              </button>
+            )}
+          </div>
         </div>
+
+        {used.length > 1 && (
+          <div>
+            <span className="label">¿De quién son los horarios que editás?</span>
+            <div className="segmented" role="tablist">
+              {used.map((c) => (
+                <button key={c.id} type="button" role="tab" aria-selected={c.id === cal.id} onClick={() => setEditing(c.id)} className="!px-2 truncate">
+                  {calName(c)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
-          <span className="label">Horarios de paseo</span>
-          <TimesEditor times={fam.walkTimes} onChange={(walkTimes) => setFam({ ...fam, walkTimes })} />
+          <span className="label">Horarios de paseo{used.length > 1 ? ` de ${calName(cal)}` : ""}</span>
+          <TimesEditor times={cal.walkTimes} onChange={(walkTimes) => setCal({ walkTimes })} />
         </div>
         <div>
           <span className="label">Días fijos</span>
           <FixedDaysEditor
-            days={fam.fixedDays.map((x) => (x && walkers.some((w) => w.id === x) ? x : null))}
+            days={cal.fixedDays.map((x) => (x && walkers.some((w) => w.id === x) ? x : null))}
             walkers={walkers.map((w) => ({ key: w.id, member: w }))}
-            onChange={(wd, key) => setFam({ ...fam, fixedDays: fam.fixedDays.map((v, j) => (j === wd ? key : v)) })}
+            onChange={(wd, key) => setCal({ fixedDays: cal.fixedDays.map((v, j) => (j === wd ? key : v)) })}
           />
         </div>
         <div>
@@ -286,14 +633,18 @@ function SettingsSheet({ onClose, toast }: { onClose: () => void; toast: (m: str
         <p className="text-[0.9375rem] text-ink-3">Los cambios en días fijos y en el orden se aplican a todo el calendario. Las excepciones e intercambios que ya se hicieron se mantienen.</p>
         <button
           className="btn btn-primary btn-lg"
-          disabled={busy || !fam.dogName.trim() || fam.walkTimes.length === 0}
+          disabled={busy || !valid}
           onClick={async () => {
             setBusy(true);
             try {
-              await f.store.updateFamily({ ...fam, rotation, walkTimes: [...new Set(fam.walkTimes)] });
+              const clean = cals.map((c) => (c.id === cal.id ? { ...c, rotation } : c)).map((c) => ({ ...c, walkTimes: [...new Set(c.walkTimes)] }));
+              const trimmed = dogs.map((d) => ({ ...d, name: d.name.trim() }));
+              await f.store.updateFamily(withCalendars(fam, clean, trimmed));
               await f.reload();
               toast("Cambios guardados.");
               onClose();
+            } catch (e) {
+              toast(e instanceof Error ? e.message : "No se pudo guardar.");
             } finally {
               setBusy(false);
             }
@@ -301,6 +652,7 @@ function SettingsSheet({ onClose, toast }: { onClose: () => void; toast: (m: str
         >
           Guardar cambios
         </button>
+        <DeleteFamily />
       </div>
     </Sheet>
   );

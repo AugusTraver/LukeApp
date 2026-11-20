@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft, Eye, Footprints, Lock, Mail, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Eye, Footprints, Lock, Mail, MailCheck, Pencil, Plus, Route, Trash2, Users } from "lucide-react";
 import { useState } from "react";
-import type { Member, Role } from "@/lib/domain/types";
+import { allCalendars, joinNames, newCalendarFrom, withCalendars } from "@/lib/domain/calendars";
+import { MAIN, type Member, type Role } from "@/lib/domain/types";
 import type { FamilyPreview, Session, Store } from "@/lib/store/types";
 import { AVATAR_BGS, Avatar, AvatarPicker, presetAvatar } from "./Avatar";
 import { Dog, type DogCoat } from "./Dog";
@@ -183,6 +184,68 @@ export function AdminSignIn({ store, onBack, onSession }: { store: Store; onBack
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"signin" | "forgot" | "sent">("signin");
+
+  if (mode !== "signin")
+    return (
+      <main className={shell}>
+        <Header
+          onBack={() => {
+            setError(null);
+            setMode("signin");
+          }}
+        />
+        {mode === "sent" ? (
+          <section className="flex flex-col items-center text-center">
+            <span className="h-20 w-20 rounded-full bg-moss-soft text-moss flex items-center justify-center">
+              <MailCheck size={36} />
+            </span>
+            <h1 className="display text-[2rem] mt-5">Revisá tu email</h1>
+            <p className="text-lg text-ink-2 mt-2">
+              Te mandamos un enlace a <span className="font-semibold text-ink break-all">{email}</span>. Abrilo desde este celular y elegí una contraseña nueva.
+            </p>
+            <p className="hint mt-4">Si no aparece en unos minutos, mirá en Spam o Correo no deseado.</p>
+            <button className="btn btn-outline btn-lg mt-8" onClick={() => setMode("signin")}>
+              Volver a entrar
+            </button>
+          </section>
+        ) : (
+          <>
+            <h1 className="display text-[2.25rem]">Olvidé mi contraseña</h1>
+            <p className="text-lg text-ink-2 mt-2">Escribí el email con el que creaste la familia. Te mandamos un enlace para elegir una contraseña nueva.</p>
+            <form
+              className="mt-8 flex flex-col gap-5 flex-1"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setBusy(true);
+                setError(null);
+                try {
+                  await store.requestPasswordReset!(email);
+                  setMode("sent");
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "No pudimos mandar el email.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <Field label="Email">
+                <IconInput icon={<Mail size={19} />} type="email" inputMode="email" autoComplete="email" placeholder="nombre@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+              </Field>
+              {error && (
+                <p className="font-medium text-clay" role="alert">
+                  {error}
+                </p>
+              )}
+              <button className="btn btn-primary btn-lg mt-auto" disabled={busy || !/.+@.+[.].+/.test(email)}>
+                Mandarme el enlace
+              </button>
+            </form>
+          </>
+        )}
+      </main>
+    );
+
   return (
     <main className={shell}>
       <Header onBack={onBack} />
@@ -209,6 +272,18 @@ export function AdminSignIn({ store, onBack, onSession }: { store: Store; onBack
         <Field label="Contraseña">
           <PasswordInput icon={<Lock size={19} />} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Field>
+        {store.requestPasswordReset && (
+          <button
+            type="button"
+            className="self-start -mt-2 text-[0.9375rem] font-semibold text-pine underline underline-offset-4 decoration-pine/30 min-h-11"
+            onClick={() => {
+              setError(null);
+              setMode("forgot");
+            }}
+          >
+            Olvidé mi contraseña
+          </button>
+        )}
         {error && (
           <p className="font-medium text-clay" role="alert">
             {error}
@@ -216,6 +291,53 @@ export function AdminSignIn({ store, onBack, onSession }: { store: Store; onBack
         )}
         <button className="btn btn-primary btn-lg mt-auto" disabled={busy}>
           Entrar
+        </button>
+      </form>
+    </main>
+  );
+}
+
+/* ================= Contraseña nueva (desde el email) ================= */
+
+export function NewPassword({ store, onDone, onCancel }: { store: Store; onDone: (s: Session) => void; onCancel: () => void }) {
+  const [password, setPassword] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const mismatch = repeat.length > 0 && repeat !== password;
+  return (
+    <main className={shell}>
+      <Header onBack={onCancel} />
+      <h1 className="display text-[2.25rem]">Elegí una contraseña nueva</h1>
+      <p className="text-lg text-ink-2 mt-2">Con esta vas a entrar como admin de ahora en adelante.</p>
+      <form
+        className="mt-8 flex flex-col gap-5 flex-1"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError(null);
+          try {
+            onDone(await store.updatePassword!(password));
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "No se pudo cambiar la contraseña.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <Field label="Contraseña nueva" hint={password.length > 0 && password.length < 8 ? `Faltan ${8 - password.length} caracteres.` : "Mínimo 8 caracteres."}>
+          <PasswordInput icon={<Lock size={19} />} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+        </Field>
+        <Field label="Repetila" hint={mismatch ? "No coincide con la de arriba." : undefined}>
+          <PasswordInput icon={<Lock size={19} />} autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(e.target.value)} />
+        </Field>
+        {error && (
+          <p className="font-medium text-clay" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="btn btn-primary btn-lg mt-auto" disabled={busy || password.length < 8 || password !== repeat}>
+          Guardar y entrar
         </button>
       </form>
     </main>
@@ -233,8 +355,9 @@ export function newDraft(i: number, role: Role = "walker"): Draft {
 
 export function CreateFamily({ store, onBack, onSession }: { store: Store; onBack: () => void; onSession: (s: Session) => void }) {
   const [step, setStep] = useState(0);
-  const [dogName, setDogName] = useState("");
-  const [coat, setCoat] = useState<DogCoat>("black");
+  const [dogs, setDogs] = useState<{ name: string; coat: DogCoat; apart: boolean }[]>([{ name: "", coat: "black", apart: false }]);
+  const setDog = (i: number, p: Partial<{ name: string; coat: DogCoat; apart: boolean }>) => setDogs((ds) => ds.map((d, j) => (j === i ? { ...d, ...p } : d)));
+  const dogName = dogs[0].name;
   const [times, setTimes] = useState<string[]>(["17:20"]);
   const [members, setMembers] = useState<Draft[]>([newDraft(0, "admin")]);
   const [fixed, setFixed] = useState<(number | null)[]>([null, null, null, null, null, null, null]);
@@ -247,10 +370,12 @@ export function CreateFamily({ store, onBack, onSession }: { store: Store; onBac
   const walkerIdx = members.map((m, i) => (m.walks ? i : -1)).filter((i) => i >= 0);
   const needsAccount = store.mode === "supabase";
   const TOTAL = 5;
-  const dog = dogName.trim() || "tu perro";
+  const together = dogs.filter((d, i) => i === 0 || !d.apart);
+  const dog = joinNames(together.map((d) => d.name.trim()).filter(Boolean)) || "tu perro";
+  const plural = together.length > 1;
 
   const canNext = [
-    dogName.trim().length > 0,
+    dogs.every((d) => d.name.trim().length > 0),
     times.length > 0 && times.every((t) => /^\d{2}:\d{2}$/.test(t)),
     members.every((m) => m.name.trim()) && walkerIdx.length > 0,
     true,
@@ -270,12 +395,11 @@ export function CreateFamily({ store, onBack, onSession }: { store: Store; onBac
     setBusy(true);
     setError(null);
     try {
-      onSession(
-        await store.createFamily({
+      const session = await store.createFamily({
           family: {
             name: `Familia de ${members[0].name.trim()}`,
             dogName: dogName.trim(),
-            dogCoat: coat,
+            dogCoat: dogs[0].coat,
             timeZone: TIME_ZONE,
             walkTimes: [...new Set(times)],
             fixedDays: fixed.map((f) => (f !== null && members[f]?.walks ? f : null)),
@@ -285,8 +409,20 @@ export function CreateFamily({ store, onBack, onSession }: { store: Store; onBac
           members: members.map((m) => ({ ...m, name: m.name.trim() })),
           adminPin: pin,
           account: needsAccount ? { email, password } : undefined,
-        }),
-      );
+        });
+      if (dogs.length > 1) {
+        // Más perros: los que salen juntos comparten calendario; los que salen aparte, uno propio.
+        try {
+          const { family } = await store.load(session.familyId);
+          const main = allCalendars(family)[0];
+          const ds = dogs.map((d, i) => ({ id: `dog-${i + 1}`, name: d.name.trim(), coat: d.coat, calendarId: i > 0 && d.apart ? `cal-${i + 1}` : MAIN }));
+          const cals = [main, ...ds.filter((d) => d.calendarId !== MAIN).map((d) => newCalendarFrom(main, d.calendarId))];
+          await store.updateFamily(withCalendars(family, cals, ds));
+        } catch {
+          /* la familia ya está creada: los perros se pueden sumar después desde Reglas */
+        }
+      }
+      onSession(session);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos crear la familia.");
       setFirstPin(null);
@@ -310,20 +446,60 @@ export function CreateFamily({ store, onBack, onSession }: { store: Store; onBac
 
       {step === 0 && (
         <section>
-          <h1 className="display text-[2.25rem]">¿Cómo se llama tu perro?</h1>
-          <p className="text-lg text-ink-2 mt-2">Así lo va a llamar la app en los avisos.</p>
+          <h1 className="display text-[2.25rem]">{dogs.length > 1 ? "¿Cómo se llaman tus perros?" : "¿Cómo se llama tu perro?"}</h1>
+          <p className="text-lg text-ink-2 mt-2">Así los va a llamar la app en los avisos.</p>
           <Field label="Nombre" className="mt-6">
-            <input className="field !text-xl font-medium" value={dogName} onChange={(e) => setDogName(e.target.value)} placeholder="Por ejemplo, Luke" autoFocus />
+            <input className="field !text-xl font-medium" value={dogs[0].name} onChange={(e) => setDog(0, { name: e.target.value })} placeholder="Por ejemplo, Luke" autoFocus />
           </Field>
           <p className="label mt-7">Pelaje</p>
-          <CoatPicker value={coat} onChange={setCoat} />
+          <CoatPicker value={dogs[0].coat} onChange={(c) => setDog(0, { coat: c })} />
+
+          {dogs.slice(1).map((d, k) => {
+            const i = k + 1;
+            return (
+              <div key={i} className="card p-4 mt-4">
+                <div className="flex items-center gap-2">
+                  <input className="field flex-1 min-w-0 font-medium" value={d.name} onChange={(e) => setDog(i, { name: e.target.value })} placeholder={`Nombre del perro ${i + 1}`} aria-label={`Nombre del perro ${i + 1}`} />
+                  <button type="button" className="tap h-11 w-11 shrink-0 rounded-full text-ink-3 flex items-center justify-center" onClick={() => setDogs((ds) => ds.filter((_, j) => j !== i))} aria-label="Quitar perro">
+                    <Trash2 size={19} />
+                  </button>
+                </div>
+                <div className="mt-3">
+                  <CoatPicker compact value={d.coat} onChange={(c) => setDog(i, { coat: c })} />
+                </div>
+                <p className="label mt-4">¿Cómo sale?</p>
+                <Segmented
+                  label="Cómo sale"
+                  value={d.apart ? "apart" : "together"}
+                  onChange={(v) => setDog(i, { apart: v === "apart" })}
+                  options={[
+                    { id: "together", label: `Con ${dogs[0].name.trim() || "el primero"}`, icon: <Users size={16} /> },
+                    { id: "apart", label: "Aparte", icon: <Route size={16} /> },
+                  ]}
+                />
+                <p className="hint">{d.apart ? "Tiene sus propios horarios y turnos. Los configurás en Reglas de la familia." : "Comparten el paseo: el mismo horario y la misma persona."}</p>
+              </div>
+            );
+          })}
+          {dogs.length < 6 && (
+            <button type="button" className="btn btn-dashed w-full mt-4" onClick={() => setDogs((ds) => [...ds, { name: "", coat: (["brown", "golden", "gray", "black"] as DogCoat[])[(ds.length - 1) % 4], apart: false }])}>
+              <Plus size={18} /> Sumar otro perro
+            </button>
+          )}
         </section>
       )}
 
       {step === 1 && (
         <section>
-          <h1 className="display text-[2.25rem]">¿A qué hora sale {dog}?</h1>
-          <p className="text-lg text-ink-2 mt-2">Si sale más de una vez por día, sumá otro horario.</p>
+          <h1 className="display text-[2.25rem]">
+            ¿A qué hora {plural ? "salen" : "sale"} {dog}?
+          </h1>
+          <p className="text-lg text-ink-2 mt-2">Si {plural ? "salen" : "sale"} más de una vez por día, sumá otro horario.</p>
+          {dogs.some((d, i) => i > 0 && d.apart) && (
+            <p className="hint mt-2">
+              {joinNames(dogs.filter((d, i) => i > 0 && d.apart).map((d) => d.name.trim()))} empieza con estos mismos horarios y turnos. Después los cambiás en Reglas de la familia.
+            </p>
+          )}
           <div className="mt-6">
             <TimesEditor times={times} onChange={setTimes} large />
           </div>

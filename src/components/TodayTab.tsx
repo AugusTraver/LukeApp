@@ -1,13 +1,15 @@
 "use client";
 
-import { AlertTriangle, ArrowLeftRight, Check, Flame, Hand, Scale } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Check, Flame, Hand, Luggage, Scale } from "lucide-react";
 import { useState } from "react";
 import { addDays, cap, longDate, mondayOf, shortDayName, timeToMinutes, weekdayOf, whenPhrase } from "@/lib/domain/dates";
-import { buildTurns, streak } from "@/lib/domain/schedule";
+import { viewCoats } from "@/lib/domain/calendars";
+import { buildTurns, isAbsent, streak } from "@/lib/domain/schedule";
 import type { Turn } from "@/lib/domain/types";
 import { useFamily } from "@/lib/useFamily";
 import { Avatar } from "./Avatar";
-import { Dog, type DogCoat } from "./Dog";
+import { DogPack } from "./Dog";
+import { SetupChecklist } from "./Notifications";
 import { DeclineSheet, SwapInbox } from "./TurnSheet";
 import { IconBadge } from "./ui";
 
@@ -22,6 +24,7 @@ export function TodayTab({ toast }: { toast: (m: string) => void }) {
   const yesterday = buildTurns(data, addDays(now.date, -1), addDays(now.date, -1), now).filter((t) => t.status === "missed");
   const myDebts = buildTurns(data, addDays(now.date, 1), addDays(now.date, 21), now).filter((t) => t.override?.kind === "debt" && t.memberId === me.id);
   const days = streak(data, now);
+  const myAway = (data.absences ?? []).filter((a) => a.memberId === me.id && a.to >= now.date).sort((a, b) => a.from.localeCompare(b.from))[0];
 
   return (
     <div className="flex flex-col gap-5">
@@ -36,6 +39,22 @@ export function TodayTab({ toast }: { toast: (m: string) => void }) {
           <span className="text-[0.875rem] font-medium">{days === 1 ? "día" : "días"}</span>
         </div>
       </header>
+
+      <SetupChecklist toast={toast} />
+
+      {myAway && (
+        <div className="card p-4 flex items-start gap-3.5">
+          <IconBadge tone="moss">
+            <Luggage size={20} />
+          </IconBadge>
+          <div>
+            <p className="font-semibold">{isAbsent(data, me.id, now.date) ? "Estás de viaje" : "Vas a estar de viaje"}</p>
+            <p className="text-ink-2 mt-0.5">
+              {myAway.from <= now.date ? "Hasta" : `Del ${myAway.from.slice(8)}/${myAway.from.slice(5, 7)} al`} {myAway.to.slice(8)}/{myAway.to.slice(5, 7)}. Tus turnos los cubren los demás y no cuentan como falta.
+            </p>
+          </div>
+        </div>
+      )}
 
       <SwapInbox />
 
@@ -83,7 +102,8 @@ function TodayHero({ turn, toast }: { turn: Turn; toast: (m: string) => void }) 
   const [busy, setBusy] = useState(false);
   const [declining, setDeclining] = useState(false);
   const dog = data.family.dogName;
-  const coat = data.family.dogCoat as DogCoat;
+  const coats = viewCoats(data.family);
+  const plural = coats.length > 1;
   const owner = f.member(turn.memberId);
   const mine = turn.memberId === me.id;
   const minutesLeft = timeToMinutes(turn.slot) - now.minutes;
@@ -93,7 +113,7 @@ function TodayHero({ turn, toast }: { turn: Turn; toast: (m: string) => void }) 
     setBusy(true);
     try {
       await f.confirm(turn.date, turn.slot);
-      toast(`Listo. ${dog} ya salió.`);
+      toast(`Listo. ${dog} ya ${plural ? "salieron" : "salió"}.`);
       navigator.vibrate?.(40);
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo confirmar.");
@@ -114,14 +134,14 @@ function TodayHero({ turn, toast }: { turn: Turn; toast: (m: string) => void }) 
       <>
         Paseo hecho.
         <br />
-        {dog}, feliz.
+        {dog}, {plural ? "felices" : "feliz"}.
       </>
     );
     sub = `${by?.id === me.id ? "Lo sacaste vos" : `Lo sacó ${by?.name ?? "alguien"}`} a las ${hhmm(turn.confirmation!.at, data.family.timeZone)}.`;
   } else if (turn.status === "unassigned") {
     mood = "sad";
     tone = "bg-[#5a2a22] text-white";
-    title = <>Hoy nadie puede sacarlo.</>;
+    title = <>Hoy nadie puede sacar{plural ? "los" : "lo"}.</>;
     sub = `El paseo de las ${turn.slot} no tiene responsable. ¿Lo podés sacar vos?`;
   } else if (mine) {
     title = (
@@ -132,7 +152,7 @@ function TodayHero({ turn, toast }: { turn: Turn; toast: (m: string) => void }) 
     );
     sub =
       turn.status === "now"
-        ? `${dog} te espera desde las ${turn.slot}.`
+        ? `${dog} te ${plural ? "esperan" : "espera"} desde las ${turn.slot}.`
         : minutesLeft <= 90
           ? `A las ${turn.slot}. Faltan ${minutesLeft} minutos.`
           : `A las ${turn.slot}.`;
@@ -147,7 +167,7 @@ function TodayHero({ turn, toast }: { turn: Turn; toast: (m: string) => void }) 
     sub = turn.status === "now" ? `Era a las ${turn.slot} y todavía no lo confirmó.` : `A las ${turn.slot}.`;
   }
 
-  const covering = turn.override?.kind === "exception" && turn.override.fromMemberId ? f.member(turn.override.fromMemberId) : null;
+  const covering = turn.coverFor ? f.member(turn.coverFor) : turn.override?.kind === "exception" && turn.override.fromMemberId ? f.member(turn.override.fromMemberId) : null;
 
   return (
     <section className={`relative overflow-hidden rounded-[1.75rem] ${tone} shadow-[0_18px_40px_-20px_rgba(30,58,43,0.7)]`}>
@@ -158,7 +178,7 @@ function TodayHero({ turn, toast }: { turn: Turn; toast: (m: string) => void }) 
         {!mine && owner && turn.status !== "done" && <Avatar member={owner} size={40} ring />}
       </div>
       <div className="flex justify-center -mt-2">
-        <Dog mood={mood} coat={coat} size={210} halo="rgba(242,241,234,0.1)" />
+        <DogPack mood={mood} coats={coats} size={210} halo="rgba(242,241,234,0.1)" />
       </div>
       <div className="px-6 pb-6">
         <h2 className="display text-[2.4rem] leading-[1.02]">{title}</h2>
@@ -171,7 +191,8 @@ function TodayHero({ turn, toast }: { turn: Turn; toast: (m: string) => void }) 
               </>
             ) : (
               <>
-                <ArrowLeftRight size={15} /> Cubre a {covering!.name}
+                {turn.coverFor ? <Luggage size={15} /> : <ArrowLeftRight size={15} />} Cubre a {covering!.name}
+                {turn.coverFor ? ", que está de viaje" : ""}
               </>
             )}
           </p>
