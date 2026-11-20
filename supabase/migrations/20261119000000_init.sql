@@ -31,8 +31,8 @@ create table public.members (
   id uuid primary key default gen_random_uuid(),
   family_id uuid not null references public.families(id) on delete cascade,
   name text not null check (char_length(name) between 1 and 40),
-  avatar text not null default '🧑',
-  color text not null default '#FDBA74',
+  avatar text not null default 'Mateo',
+  color text not null default '#f3dcc0',
   role text not null check (role in ('admin', 'walker', 'observer')),
   walks boolean not null default true,
   created_at timestamptz not null default now()
