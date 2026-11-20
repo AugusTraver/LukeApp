@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowLeft, Eye, Footprints, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Eye, Footprints, Lock, Mail, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { dayName, cap } from "@/lib/domain/dates";
 import type { Member, Role } from "@/lib/domain/types";
 import type { FamilyPreview, Session, Store } from "@/lib/store/types";
-import { AVATAR_BGS, AVATAR_SEEDS, Avatar, AvatarPicker } from "./Avatar";
-import { COATS, Dog, type DogCoat } from "./Dog";
+import { AVATAR_BGS, Avatar, AvatarPicker, presetAvatar } from "./Avatar";
+import { Dog, type DogCoat } from "./Dog";
+import { CoatPicker, Field, FixedDaysEditor, IconInput, PasswordInput, Segmented, TimesEditor } from "./form";
 import { PinPad, Sheet } from "./ui";
 
 const shell = "min-h-dvh px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-10 max-w-md mx-auto flex flex-col";
@@ -203,14 +203,12 @@ export function AdminSignIn({ store, onBack, onSession }: { store: Store; onBack
           }
         }}
       >
-        <label>
-          <span className="label">Email</span>
-          <input className="field" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <label>
-          <span className="label">Contraseña</span>
-          <input className="field" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
+        <Field label="Email">
+          <IconInput icon={<Mail size={19} />} type="email" inputMode="email" autoComplete="email" placeholder="nombre@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </Field>
+        <Field label="Contraseña">
+          <PasswordInput icon={<Lock size={19} />} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        </Field>
         {error && (
           <p className="font-medium text-clay" role="alert">
             {error}
@@ -230,7 +228,7 @@ type Draft = Omit<Member, "id">;
 const TIME_ZONE = "America/Argentina/Buenos_Aires";
 
 export function newDraft(i: number, role: Role = "walker"): Draft {
-  return { name: "", avatar: AVATAR_SEEDS[i % AVATAR_SEEDS.length], color: AVATAR_BGS[i % AVATAR_BGS.length], role, walks: role !== "observer" };
+  return { name: "", avatar: presetAvatar(i), color: AVATAR_BGS[i % AVATAR_BGS.length], role, walks: role !== "observer" };
 }
 
 export function CreateFamily({ store, onBack, onSession }: { store: Store; onBack: () => void; onSession: (s: Session) => void }) {
@@ -313,21 +311,12 @@ export function CreateFamily({ store, onBack, onSession }: { store: Store; onBac
       {step === 0 && (
         <section>
           <h1 className="display text-[2.25rem]">¿Cómo se llama tu perro?</h1>
-          <input className="field mt-6 !text-xl" value={dogName} onChange={(e) => setDogName(e.target.value)} placeholder="Luke" aria-label="Nombre del perro" autoFocus />
-          <p className="label mt-8">¿Cómo es su pelaje?</p>
-          <div className="grid grid-cols-2 gap-3">
-            {COATS.map((c) => (
-              <button
-                key={c.id}
-                className={`tap card p-3 flex flex-col items-center gap-1 border-2 transition-colors ${coat === c.id ? "border-pine" : "border-transparent"}`}
-                onClick={() => setCoat(c.id)}
-                aria-pressed={coat === c.id}
-              >
-                <Dog mood="happy" coat={c.id} size={92} sun={false} />
-                <span className="font-medium text-[0.9375rem]">{c.label}</span>
-              </button>
-            ))}
-          </div>
+          <p className="text-lg text-ink-2 mt-2">Así lo va a llamar la app en los avisos.</p>
+          <Field label="Nombre" className="mt-6">
+            <input className="field !text-xl font-medium" value={dogName} onChange={(e) => setDogName(e.target.value)} placeholder="Por ejemplo, Luke" autoFocus />
+          </Field>
+          <p className="label mt-7">Pelaje</p>
+          <CoatPicker value={coat} onChange={setCoat} />
         </section>
       )}
 
@@ -335,20 +324,8 @@ export function CreateFamily({ store, onBack, onSession }: { store: Store; onBac
         <section>
           <h1 className="display text-[2.25rem]">¿A qué hora sale {dog}?</h1>
           <p className="text-lg text-ink-2 mt-2">Si sale más de una vez por día, sumá otro horario.</p>
-          <div className="flex flex-col gap-3 mt-6">
-            {times.map((t, i) => (
-              <div key={i} className="flex gap-2">
-                <input type="time" className="field !text-2xl flex-1 font-medium" value={t} onChange={(e) => setTimes((ts) => ts.map((x, j) => (j === i ? e.target.value : x)))} aria-label={`Horario ${i + 1}`} />
-                {times.length > 1 && (
-                  <button className="btn btn-outline !px-4" onClick={() => setTimes((ts) => ts.filter((_, j) => j !== i))} aria-label="Quitar horario">
-                    <X size={20} />
-                  </button>
-                )}
-              </div>
-            ))}
-            <button className="btn btn-soft" onClick={() => setTimes((ts) => [...ts, "08:00"])}>
-              <Plus size={18} /> Sumar otro horario
-            </button>
+          <div className="mt-6">
+            <TimesEditor times={times} onChange={setTimes} large />
           </div>
         </section>
       )}
@@ -367,7 +344,7 @@ export function CreateFamily({ store, onBack, onSession }: { store: Store; onBac
                 onRemove={i > 0 ? () => setMembers((ms) => ms.filter((_, j) => j !== i)) : undefined}
               />
             ))}
-            <button className="btn btn-soft" onClick={() => setMembers((ms) => [...ms, newDraft(ms.length)])}>
+            <button className="btn btn-dashed" onClick={() => setMembers((ms) => [...ms, newDraft(ms.length)])}>
               <Plus size={18} /> Sumar a alguien
             </button>
           </div>
@@ -378,31 +355,13 @@ export function CreateFamily({ store, onBack, onSession }: { store: Store; onBac
       {step === 3 && (
         <section>
           <h1 className="display text-[2.25rem]">¿Alguien tiene un día fijo?</h1>
-          <p className="text-lg text-ink-2 mt-2">Los días que se turnan se reparten en orden entre todos los que pasean.</p>
-          <div className="card mt-6 divide-y divide-line">
-            {fixed.map((f, wd) => {
-              const who = f !== null ? members[f] : null;
-              return (
-                <label key={wd} className="flex items-center gap-3 px-4 py-2.5">
-                  <span className="w-24 font-semibold">{cap(dayName(wd))}</span>
-                  <span className="flex-1 flex items-center justify-end gap-2 min-w-0">
-                    {who && <Avatar member={who} size={30} />}
-                    <select
-                      className="min-h-11 bg-transparent text-right font-medium text-ink-2 pr-1 max-w-[60%]"
-                      value={f ?? ""}
-                      onChange={(e) => setFixed((x) => x.map((v, j) => (j === wd ? (e.target.value === "" ? null : Number(e.target.value)) : v)))}
-                    >
-                      <option value="">Se turnan</option>
-                      {walkerIdx.map((i) => (
-                        <option key={i} value={i}>
-                          {members[i].name || "Sin nombre"}
-                        </option>
-                      ))}
-                    </select>
-                  </span>
-                </label>
-              );
-            })}
+          <p className="text-lg text-ink-2 mt-2">Tocá una cara para que ese día lo saque siempre la misma persona. El resto se reparte en orden.</p>
+          <div className="mt-6">
+            <FixedDaysEditor
+              days={fixed.map((f) => (f !== null && members[f]?.walks ? String(f) : null))}
+              walkers={walkerIdx.map((i) => ({ key: String(i), member: members[i] }))}
+              onChange={(wd, key) => setFixed((x) => x.map((v, j) => (j === wd ? (key === null ? null : Number(key)) : v)))}
+            />
           </div>
         </section>
       )}
@@ -414,14 +373,12 @@ export function CreateFamily({ store, onBack, onSession }: { store: Store; onBac
             <>
               <p className="text-lg text-ink-2 mt-2">Sirve para recuperar la familia si cambiás de celular. Los demás entran solo con el código y su PIN.</p>
               <div className="flex flex-col gap-5 mt-6">
-                <label>
-                  <span className="label">Email</span>
-                  <input className="field" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                </label>
-                <label>
-                  <span className="label">Contraseña (mínimo 8 caracteres)</span>
-                  <input className="field" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                </label>
+                <Field label="Email">
+                  <IconInput icon={<Mail size={19} />} type="email" inputMode="email" autoComplete="email" placeholder="nombre@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </Field>
+                <Field label="Contraseña" hint={password.length > 0 && password.length < 8 ? `Faltan ${8 - password.length} caracteres.` : "Mínimo 8 caracteres."}>
+                  <PasswordInput icon={<Lock size={19} />} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                </Field>
               </div>
             </>
           ) : (
@@ -459,31 +416,34 @@ export function MemberEditor({ draft, isFirst, onChange, onRemove }: { draft: Dr
   const [picking, setPicking] = useState(false);
   return (
     <div className="card p-4">
-      <div className="flex items-center gap-3">
-        <button className="tap rounded-full relative" onClick={() => setPicking(true)} aria-label="Cambiar cara">
-          <Avatar member={draft} size={56} />
-          <span className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-pine text-white flex items-center justify-center ring-2 ring-white">
-            <Plus size={12} strokeWidth={3} />
+      <div className="flex items-center gap-3.5">
+        <button type="button" className="tap rounded-full relative shrink-0" onClick={() => setPicking(true)} aria-label="Cambiar avatar">
+          <Avatar member={draft} size={60} />
+          <span className="absolute -bottom-0.5 -right-0.5 h-6 w-6 rounded-full bg-pine text-white flex items-center justify-center ring-[2.5px] ring-white">
+            <Pencil size={12} strokeWidth={2.5} />
           </span>
         </button>
-        <input className="field flex-1" value={draft.name} onChange={(e) => onChange({ name: e.target.value })} placeholder={isFirst ? "Tu nombre" : "Nombre"} aria-label="Nombre" />
+        <input className="field flex-1 min-w-0" value={draft.name} onChange={(e) => onChange({ name: e.target.value })} placeholder={isFirst ? "Tu nombre" : "Nombre"} aria-label="Nombre" />
         {onRemove && (
-          <button className="tap h-11 w-11 rounded-full text-ink-3 flex items-center justify-center" onClick={onRemove} aria-label="Quitar">
+          <button type="button" className="tap h-11 w-11 -mr-1 shrink-0 rounded-full text-ink-3 flex items-center justify-center" onClick={onRemove} aria-label="Quitar">
             <Trash2 size={19} />
           </button>
         )}
       </div>
-      <div className="flex gap-2 mt-3">
-        <button className="option" onClick={() => onChange(isFirst ? { walks: true } : { role: "walker", walks: true })} aria-pressed={draft.walks}>
-          <Footprints size={17} /> {isFirst ? "Lo saco" : "Lo saca"}
-        </button>
-        <button className="option" onClick={() => onChange(isFirst ? { walks: false } : { role: "observer", walks: false })} aria-pressed={!draft.walks}>
-          <Eye size={17} /> {isFirst ? "Solo miro" : "Solo mira"}
-        </button>
+      <div className="mt-3.5">
+        <Segmented
+          label="Qué hace"
+          value={draft.walks ? "walks" : "watches"}
+          onChange={(v) => onChange(v === "walks" ? (isFirst ? { walks: true } : { role: "walker", walks: true }) : isFirst ? { walks: false } : { role: "observer", walks: false })}
+          options={[
+            { id: "walks", label: isFirst ? "Lo saco" : "Lo saca", icon: <Footprints size={17} /> },
+            { id: "watches", label: isFirst ? "Solo miro" : "Solo mira", icon: <Eye size={17} /> },
+          ]}
+        />
       </div>
-      <Sheet open={picking} onClose={() => setPicking(false)} title="Elegí una cara">
-        <AvatarPicker value={draft.avatar} color={draft.color} onChange={(p) => onChange(p)} />
-        <button className="btn btn-primary btn-lg mt-6" onClick={() => setPicking(false)}>
+      <Sheet open={picking} onClose={() => setPicking(false)} title="Avatar">
+        <AvatarPicker value={draft.avatar} color={draft.color} name={draft.name} onChange={(p) => onChange(p)} />
+        <button className="btn btn-primary btn-lg mt-4" onClick={() => setPicking(false)}>
           Listo
         </button>
       </Sheet>

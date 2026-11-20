@@ -2,12 +2,13 @@
 
 import { Bell, CalendarDays, ChevronRight, CircleHelp, Copy, KeyRound, LogOut, Plus, Scale, Settings2, Share2, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import { cap, dayName } from "@/lib/domain/dates";
+import { dayName } from "@/lib/domain/dates";
 import type { Family, Member } from "@/lib/domain/types";
 import { useFamily } from "@/lib/useFamily";
 import { Avatar } from "./Avatar";
 import { BallGame } from "./BallGame";
-import { COATS, Dog, type DogCoat } from "./Dog";
+import { Dog, type DogCoat } from "./Dog";
+import { CoatPicker, Field, FixedDaysEditor, TimesEditor } from "./form";
 import { NotificationsCard } from "./Notifications";
 import { MemberEditor, newDraft } from "./Onboarding";
 import { IconBadge, Sheet } from "./ui";
@@ -231,55 +232,24 @@ function SettingsSheet({ onClose, toast }: { onClose: () => void; toast: (m: str
   return (
     <Sheet open onClose={onClose} title="Reglas de la familia">
       <div className="flex flex-col gap-7">
-        <label>
-          <span className="label">Nombre del perro</span>
+        <Field label="Nombre del perro">
           <input className="field" value={fam.dogName} onChange={(e) => setFam({ ...fam, dogName: e.target.value })} />
-        </label>
+        </Field>
         <div>
           <span className="label">Pelaje</span>
-          <div className="grid grid-cols-4 gap-2">
-            {COATS.map((c) => (
-              <button key={c.id} className={`tap rounded-2xl bg-surface p-1 border-2 ${fam.dogCoat === c.id ? "border-pine" : "border-transparent"}`} onClick={() => setFam({ ...fam, dogCoat: c.id })} aria-pressed={fam.dogCoat === c.id} aria-label={c.label}>
-                <Dog mood="happy" coat={c.id} size={64} sun={false} />
-              </button>
-            ))}
-          </div>
+          <CoatPicker compact value={fam.dogCoat as DogCoat} onChange={(c) => setFam({ ...fam, dogCoat: c })} />
         </div>
         <div>
           <span className="label">Horarios de paseo</span>
-          <div className="flex flex-col gap-2">
-            {fam.walkTimes.map((t, i) => (
-              <div key={i} className="flex gap-2">
-                <input type="time" className="field flex-1" value={t} onChange={(e) => setFam({ ...fam, walkTimes: fam.walkTimes.map((x, j) => (j === i ? e.target.value : x)) })} aria-label={`Horario ${i + 1}`} />
-                {fam.walkTimes.length > 1 && (
-                  <button className="btn btn-outline !px-4" onClick={() => setFam({ ...fam, walkTimes: fam.walkTimes.filter((_, j) => j !== i) })} aria-label="Quitar horario">
-                    <X size={18} />
-                  </button>
-                )}
-              </div>
-            ))}
-            <button className="btn btn-soft" onClick={() => setFam({ ...fam, walkTimes: [...fam.walkTimes, "08:00"] })}>
-              <Plus size={18} /> Sumar otro horario
-            </button>
-          </div>
+          <TimesEditor times={fam.walkTimes} onChange={(walkTimes) => setFam({ ...fam, walkTimes })} />
         </div>
         <div>
           <span className="label">Días fijos</span>
-          <div className="card divide-y divide-line">
-            {fam.fixedDays.map((x, wd) => (
-              <label key={wd} className="flex items-center gap-3 px-4 py-2">
-                <span className="w-24 font-medium">{cap(dayName(wd))}</span>
-                <select className="field flex-1 !min-h-11 !border-0 !px-0 text-right bg-transparent" value={x ?? ""} onChange={(e) => setFam({ ...fam, fixedDays: fam.fixedDays.map((v, j) => (j === wd ? e.target.value || null : v)) })}>
-                  <option value="">Se turnan</option>
-                  {walkers.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
+          <FixedDaysEditor
+            days={fam.fixedDays.map((x) => (x && walkers.some((w) => w.id === x) ? x : null))}
+            walkers={walkers.map((w) => ({ key: w.id, member: w }))}
+            onChange={(wd, key) => setFam({ ...fam, fixedDays: fam.fixedDays.map((v, j) => (j === wd ? key : v)) })}
+          />
         </div>
         <div>
           <span className="label">Orden en que se turnan</span>
