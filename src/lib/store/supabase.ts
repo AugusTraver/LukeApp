@@ -96,7 +96,9 @@ export class SupabaseStore implements Store {
       const r = await this.sb.auth.signInWithPassword({ email: input.account.email, password: input.account.password });
       fail(r.error, error.message.includes("already") ? "Ese email ya tiene cuenta y la contraseña no coincide." : error.message);
     } else if (!data.session) {
-      throw new StoreError("Te mandamos un email para confirmar la cuenta. Confirmalo y volvé a intentar.");
+      // Sin confirmación por email: si no vino sesión (cuenta ya existente), entramos directo.
+      const r = await this.sb.auth.signInWithPassword({ email: input.account.email, password: input.account.password });
+      fail(r.error, "Ese email ya tiene cuenta y la contraseña no coincide.");
     }
     const { data: res, error: e2 } = await this.sb.rpc("create_family", { payload: { family: input.family, members: input.members }, admin_pin: input.adminPin });
     fail(e2);
