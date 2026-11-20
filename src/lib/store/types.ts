@@ -9,7 +9,7 @@ export interface FamilyPreview {
   familyId: string;
   familyName: string;
   dogName: string;
-  dogEmoji: string;
+  dogCoat: string;
   members: { id: string; name: string; avatar: string; color: string; hasPin: boolean }[];
 }
 

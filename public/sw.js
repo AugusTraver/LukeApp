@@ -25,8 +25,8 @@ self.addEventListener("push", (event) => {
     data: { url: data.url || "/", turn: data.turn || null, token: data.token || null },
     actions: data.turn
       ? [
-          { action: "done", title: "✅ Ya lo saqué" },
-          { action: "snooze", title: "⏰ 10 min más" },
+          { action: "done", title: "Ya lo saqué" },
+          { action: "snooze", title: "10 min más" },
         ]
       : [],
   };
@@ -47,7 +47,7 @@ self.addEventListener("notificationclick", (event) => {
       })
         .then((r) => r.json())
         .then((res) =>
-          self.registration.showNotification(res.ok ? (event.action === "done" ? "¡Gracias! 🐾" : "Te recordamos en 10 minutos ⏰") : "No se pudo", {
+          self.registration.showNotification(res.ok ? (event.action === "done" ? "¡Gracias!" : "Te recordamos en 10 minutos") : "No se pudo", {
             body: res.message || "",
             icon: "/icon-192.png",
             badge: "/badge.png",

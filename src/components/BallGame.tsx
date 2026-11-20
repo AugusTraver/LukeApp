@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFamily } from "@/lib/useFamily";
-import { Luke } from "./Luke";
+import { Timer, Trophy } from "lucide-react";
+import { Dog, type DogCoat } from "./Dog";
 
 const DURATION = 20;
 const BEST_KEY = "lukeapp.ball.best";
@@ -81,14 +82,23 @@ export function BallGame() {
 
   return (
     <div className="flex flex-col items-center">
-      <div className="flex w-full justify-between font-extrabold text-lg mb-2">
-        <span>🎾 {score}</span>
-        <span>⏱️ {phase === "play" ? left : DURATION}s</span>
-        <span>🏆 {best}</span>
+      <div className="grid grid-cols-3 w-full mb-3 text-center">
+        <span>
+          <span className="block display text-[1.75rem] tabular-nums">{score}</span>
+          <span className="text-[0.8125rem] text-ink-3 font-medium">Pelotas</span>
+        </span>
+        <span>
+          <span className="flex items-center justify-center gap-1 display text-[1.75rem] tabular-nums"><Timer size={18} className="text-ink-3" />{phase === "play" ? left : DURATION}</span>
+          <span className="text-[0.8125rem] text-ink-3 font-medium">Segundos</span>
+        </span>
+        <span>
+          <span className="flex items-center justify-center gap-1 display text-[1.75rem] tabular-nums"><Trophy size={18} className="text-sun" />{best}</span>
+          <span className="text-[0.8125rem] text-ink-3 font-medium">Récord</span>
+        </span>
       </div>
-      <div ref={area} className="relative w-full h-80 rounded-3xl bg-[var(--green-soft)] overflow-hidden select-none touch-manipulation">
+      <div ref={area} className="relative w-full h-80 rounded-3xl bg-pine-soft overflow-hidden select-none touch-manipulation">
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
-          <Luke mood={phase === "end" ? "happy" : pop ? "happy" : "waiting"} size={120} />
+          <Dog mood={phase === "end" || pop ? "happy" : "waiting"} coat={data.family.dogCoat as DogCoat} size={130} sun={false} />
         </div>
         {phase === "play" && (
           <button
@@ -106,17 +116,17 @@ export function BallGame() {
           </button>
         )}
         {phase !== "play" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 text-center px-6">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-paper/80 backdrop-blur-[2px] text-center px-6">
             {phase === "end" ? (
               <>
-                <p className="text-3xl font-black">¡{score} pelotas!</p>
-                <p className="font-bold text-[var(--ink-soft)]">{score >= best && score > 0 ? "¡Nuevo récord! 🏆" : `${data.family.dogName} está chocho`}</p>
+                <p className="display text-[2rem]">{score} pelotas</p>
+                <p className="text-ink-2 mt-1">{score >= best && score > 0 ? "Nuevo récord." : `${data.family.dogName} quedó contento.`}</p>
               </>
             ) : (
-              <p className="text-xl font-black">Tocá la pelota antes de que {data.family.dogName} se aburra</p>
+              <p className="display text-[1.6rem]">Tocá la pelota antes de que {data.family.dogName} se aburra</p>
             )}
-            <button className="btn btn-primary mt-4" onClick={start}>
-              {phase === "end" ? "Otra vez" : "¡Jugar!"}
+            <button className="btn btn-primary mt-5" onClick={start}>
+              {phase === "end" ? "Jugar otra vez" : "Empezar"}
             </button>
           </div>
         )}

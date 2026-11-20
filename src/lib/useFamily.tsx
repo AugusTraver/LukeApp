@@ -162,7 +162,7 @@ export function FamilyProvider({
   if (error)
     return (
       <div className="screen-center">
-        <p className="text-lg">😕 {error}</p>
+        <p className="text-lg text-ink-2 max-w-xs">{error}</p>
         <button className="btn btn-primary mt-4" onClick={() => void reload()}>
           Reintentar
         </button>
@@ -177,11 +177,8 @@ export function FamilyProvider({
 
 export function Loading() {
   return (
-    <div className="screen-center">
-      <div className="text-6xl animate-bounce" aria-hidden>
-        🐾
-      </div>
-      <p className="mt-3 text-[var(--ink-soft)]">Cargando…</p>
+    <div className="screen-center" role="status" aria-label="Cargando">
+      <span className="h-9 w-9 rounded-full border-[3px] border-line border-t-pine animate-spin" />
     </div>
   );
 }

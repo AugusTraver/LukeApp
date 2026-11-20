@@ -1,12 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Nunito } from "next/font/google";
+import { Figtree, Newsreader } from "next/font/google";
 import "./globals.css";
 
-const nunito = Nunito({
-  variable: "--font-nunito",
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800", "900"],
-});
+const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
+const newsreader = Newsreader({ variable: "--font-newsreader", subsets: ["latin"], weight: ["400", "500", "600"], style: ["normal", "italic"] });
 
 export const metadata: Metadata = {
   title: "LukeApp",
@@ -16,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fff7ec",
+  themeColor: "#f2f1ea",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -24,7 +21,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es-AR" className={`${nunito.variable} h-full antialiased`}>
+    <html lang="es-AR" className={`${figtree.variable} ${newsreader.variable} h-full antialiased`}>
       <body className="min-h-full">{children}</body>
     </html>
   );

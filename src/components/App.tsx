@@ -1,5 +1,6 @@
 "use client";
 
+import { CalendarDays, History, House, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { getStore } from "@/lib/store";
 import type { Session, Store } from "@/lib/store/types";
@@ -51,10 +52,10 @@ export function App() {
 }
 
 const TABS = [
-  { id: "today", label: "Hoy", icon: "🐾" },
-  { id: "turns", label: "Turnos", icon: "📅" },
-  { id: "history", label: "Historial", icon: "📖" },
-  { id: "family", label: "Familia", icon: "🏠" },
+  { id: "today", label: "Hoy", Icon: House },
+  { id: "turns", label: "Turnos", Icon: CalendarDays },
+  { id: "history", label: "Historial", Icon: History },
+  { id: "family", label: "Familia", Icon: Users },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
@@ -71,36 +72,32 @@ function Shell() {
 
   return (
     <div className="min-h-dvh max-w-xl mx-auto">
-      <main className="px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-32">
+      <main className="px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-32">
         {tab === "today" && <TodayTab toast={setToast} />}
         {tab === "turns" && <TurnsTab toast={setToast} />}
         {tab === "history" && <HistoryTab />}
         {tab === "family" && <FamilyTab toast={setToast} />}
       </main>
-      <nav
-        className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t-2 border-[var(--line)] pb-[env(safe-area-inset-bottom)]"
-        aria-label="Secciones"
-      >
-        <ul className="max-w-xl mx-auto grid grid-cols-4">
-          {TABS.map((t) => {
-            const active = tab === t.id;
+      <nav className="fixed bottom-0 inset-x-0 z-30 bg-surface/92 backdrop-blur-md border-t border-line pb-[env(safe-area-inset-bottom)]" aria-label="Secciones">
+        <ul className="max-w-xl mx-auto grid grid-cols-4 px-2">
+          {TABS.map(({ id, label, Icon }) => {
+            const active = tab === id;
             return (
-              <li key={t.id}>
+              <li key={id}>
                 <button
-                  className={`tap relative w-full flex flex-col items-center gap-0.5 pt-2.5 pb-2 font-extrabold text-sm transition-colors ${active ? "text-[var(--orange-deep)]" : "text-[var(--ink-soft)]"}`}
-                  onClick={() => setTab(t.id)}
+                  className={`tap relative w-full flex flex-col items-center gap-1 pt-2 pb-2.5 text-[0.8125rem] font-medium transition-colors ${active ? "text-pine" : "text-ink-3"}`}
+                  onClick={() => setTab(id)}
                   aria-current={active ? "page" : undefined}
                 >
-                  <span className={`text-2xl leading-none transition-transform ${active ? "scale-115" : "grayscale-[60%] opacity-80"}`} aria-hidden>
-                    {t.icon}
+                  <span className={`flex items-center justify-center h-8 w-14 rounded-full transition-colors ${active ? "bg-pine-soft" : ""}`}>
+                    <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
                   </span>
-                  {t.label}
-                  {t.id === "turns" && pendingForMe > 0 && (
-                    <span className="absolute top-1.5 right-[calc(50%-1.4rem)] h-5 min-w-5 px-1 rounded-full bg-[var(--red)] text-white text-xs flex items-center justify-center">
+                  {label}
+                  {id === "turns" && pendingForMe > 0 && (
+                    <span className="absolute top-1 left-[calc(50%+0.6rem)] h-5 min-w-5 px-1 rounded-full bg-clay text-white text-[0.75rem] font-semibold flex items-center justify-center ring-2 ring-surface">
                       {pendingForMe}
                     </span>
                   )}
-                  {active && <span className="absolute top-0 h-1 w-10 rounded-b-full bg-[var(--orange)]" />}
                 </button>
               </li>
             );

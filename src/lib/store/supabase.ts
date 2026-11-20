@@ -9,7 +9,7 @@ export const famFromRow = (r: any): Family => ({
   id: r.id,
   name: r.name,
   dogName: r.dog_name,
-  dogEmoji: r.dog_emoji,
+  dogCoat: r.dog_coat,
   timeZone: r.time_zone,
   walkTimes: r.walk_times,
   fixedDays: r.fixed_days,
@@ -230,7 +230,7 @@ export class SupabaseStore implements Store {
       .update({
         name: f.name,
         dog_name: f.dogName,
-        dog_emoji: f.dogEmoji,
+        dog_coat: f.dogCoat,
         walk_times: f.walkTimes,
         fixed_days: f.fixedDays,
         rotation: f.rotation,

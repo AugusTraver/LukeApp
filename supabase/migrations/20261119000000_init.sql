@@ -13,7 +13,7 @@ create table public.families (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 1 and 80),
   dog_name text not null check (char_length(dog_name) between 1 and 40),
-  dog_emoji text not null default '🐕',
+  dog_coat text not null default 'black' check (dog_coat in ('black', 'brown', 'golden', 'gray')),
   time_zone text not null default 'America/Argentina/Buenos_Aires',
   walk_times text[] not null default '{17:20}' check (cardinality(walk_times) between 1 and 6),
   -- 7 posiciones (lunes..domingo): id del miembro fijo, o null si rota
@@ -284,11 +284,11 @@ begin
   if jsonb_array_length(payload->'members') not between 1 and 20 then raise exception 'Cantidad de miembros inválida'; end if;
 
   today := (now() at time zone tz)::date;
-  insert into public.families (name, dog_name, dog_emoji, time_zone, walk_times, rotation_anchor, start_date, penalty, insistent, join_code)
+  insert into public.families (name, dog_name, dog_coat, time_zone, walk_times, rotation_anchor, start_date, penalty, insistent, join_code)
   values (
     payload->'family'->>'name',
     payload->'family'->>'dogName',
-    coalesce(payload->'family'->>'dogEmoji', '🐕'),
+    coalesce(payload->'family'->>'dogCoat', 'black'),
     tz,
     array(select jsonb_array_elements_text(payload->'family'->'walkTimes')),
     today - (extract(isodow from today)::int - 1),
@@ -331,7 +331,7 @@ returns jsonb
 language sql stable security definer set search_path = ''
 as $$
   select jsonb_build_object(
-    'familyId', f.id, 'familyName', f.name, 'dogName', f.dog_name, 'dogEmoji', f.dog_emoji,
+    'familyId', f.id, 'familyName', f.name, 'dogName', f.dog_name, 'dogCoat', f.dog_coat,
     'members', coalesce((
       select jsonb_agg(jsonb_build_object('id', m.id, 'name', m.name, 'avatar', m.avatar, 'color', m.color, 'hasPin', p.pin_hash is not null) order by m.created_at)
       from public.members m left join private.member_pins p on p.member_id = m.id

@@ -1,6 +1,8 @@
 "use client";
 
+import { BellOff, BellRing, Share } from "lucide-react";
 import { useEffect, useState } from "react";
+import { IconBadge } from "./ui";
 import { useFamily } from "@/lib/useFamily";
 
 type State = "loading" | "unsupported" | "needs-install" | "off" | "on" | "blocked";
@@ -72,52 +74,51 @@ export function NotificationsCard({ toast }: { toast: (m: string) => void }) {
 
   if (state === "loading") return null;
 
+  const on = state === "on";
   return (
-    <section className={`card p-4 ${state === "on" ? "" : "border-[3px] border-[var(--orange)]"}`}>
-      <div className="flex items-center gap-3">
-        <span className="text-4xl" aria-hidden>
-          {state === "on" ? "🔔" : "🔕"}
-        </span>
+    <section className="card p-5">
+      <div className="flex items-start gap-3.5">
+        <IconBadge tone={on ? "moss" : "sun"}>{on ? <BellRing size={20} /> : <BellOff size={20} />}</IconBadge>
         <div className="flex-1">
-          <h2 className="text-xl font-black">{state === "on" ? "Avisos activados" : "Activá los avisos"}</h2>
-          <p className="text-[var(--ink-soft)] font-semibold text-sm">
-            {f.me.walks ? "Te avisamos 10 minutos antes, a la hora, y seguimos insistiendo hasta que confirmes." : "Te avisamos si un paseo queda sin hacer."}
+          <h2 className="font-semibold text-lg">{on ? "Avisos activados" : "Activá los avisos"}</h2>
+          <p className="text-ink-2 mt-0.5">
+            {f.me.walks ? "Te avisamos 10 minutos antes y a la hora. Si no confirmás, seguimos insistiendo." : "Te avisamos si un paseo queda sin hacer."}
           </p>
         </div>
       </div>
       {state === "off" && (
-        <button className="btn btn-primary btn-big mt-3" disabled={busy} onClick={() => void enable()}>
-          🔔 Activar avisos
+        <button className="btn btn-primary btn-lg mt-4" disabled={busy} onClick={() => void enable()}>
+          Activar avisos
         </button>
       )}
-      {state === "on" && (
-        <button className="btn btn-white w-full mt-3" disabled={busy} onClick={() => void f.store.sendTestPush(f.data.family.id, f.me.id).then(() => toast("Enviado. Debería llegarte en unos segundos."))}>
-          Probar un aviso
+      {on && (
+        <button className="btn btn-outline w-full mt-4" disabled={busy} onClick={() => void f.store.sendTestPush(f.data.family.id, f.me.id).then(() => toast("Enviado. Debería llegarte en unos segundos."))}>
+          Mandarme un aviso de prueba
         </button>
       )}
       {state === "needs-install" && (
-        <div className="mt-3 rounded-2xl bg-[var(--bg-deep)] p-3 font-semibold">
-          <p className="font-extrabold">En iPhone, primero instalá la app:</p>
-          <ol className="list-decimal pl-5 mt-1 space-y-1">
+        <div className="mt-4 rounded-2xl bg-sunken p-4">
+          <p className="font-semibold">En iPhone, primero instalá la app</p>
+          <ol className="list-decimal pl-5 mt-2 space-y-1.5 text-ink-2">
             <li>
-              Tocá el botón <b>Compartir</b> (el cuadrado con la flecha ⬆️) abajo en Safari.
+              En Safari, tocá <span className="inline-flex items-center gap-1 font-semibold text-ink"><Share size={15} /> Compartir</span>.
             </li>
             <li>
-              Elegí <b>“Agregar a inicio”</b>.
+              Elegí <span className="font-semibold text-ink">Agregar a inicio</span>.
             </li>
-            <li>Abrí LukeApp desde el ícono nuevo y volvé acá.</li>
+            <li>Abrí LukeApp desde el ícono nuevo y volvé a esta pantalla.</li>
           </ol>
         </div>
       )}
       {state === "blocked" && (
-        <div className="mt-3 rounded-2xl bg-[var(--red-soft)] p-3 font-semibold">
-          <p className="font-extrabold">Los avisos están bloqueados</p>
-          <p className="mt-1">
-            Entrá a los <b>Ajustes</b> del celular → <b>Notificaciones</b> → buscá <b>LukeApp</b> (o tu navegador) y activalos. Después volvé a abrir la app.
+        <div className="mt-4 rounded-2xl bg-clay-soft p-4">
+          <p className="font-semibold text-clay">Los avisos están bloqueados</p>
+          <p className="mt-1 text-ink-2">
+            Abrí los ajustes del celular, entrá a Notificaciones, buscá LukeApp (o tu navegador) y activalos. Después volvé a abrir la app.
           </p>
         </div>
       )}
-      {state === "unsupported" && <p className="mt-3 font-semibold text-[var(--ink-soft)]">Este navegador no permite avisos. Probá con Chrome o instalando la app.</p>}
+      {state === "unsupported" && <p className="mt-4 text-ink-2">Este navegador no permite avisos. Probá con Chrome o instalando la app.</p>}
     </section>
   );
 }

@@ -1,23 +1,31 @@
 "use client";
 
+import { Bell, CalendarDays, ChevronRight, CircleHelp, Copy, KeyRound, LogOut, Plus, Scale, Settings2, Share2, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import { dayName } from "@/lib/domain/dates";
+import { cap, dayName } from "@/lib/domain/dates";
 import type { Family, Member } from "@/lib/domain/types";
 import { useFamily } from "@/lib/useFamily";
+import { Avatar } from "./Avatar";
 import { BallGame } from "./BallGame";
-import { Luke } from "./Luke";
+import { COATS, Dog, type DogCoat } from "./Dog";
 import { NotificationsCard } from "./Notifications";
-import { MemberEditor } from "./Onboarding";
-import { AVATARS, Avatar, COLORS, Sheet } from "./ui";
+import { MemberEditor, newDraft } from "./Onboarding";
+import { IconBadge, Sheet } from "./ui";
 
 export function FamilyTab({ toast }: { toast: (m: string) => void }) {
   const f = useFamily();
   const { data, me, isAdmin } = f;
   const [sheet, setSheet] = useState<null | "how" | "game" | "settings" | { member: Member | null }>(null);
-  const roleText = (m: Member) => (m.role === "admin" ? (m.walks ? "Admin · pasea" : "Admin") : m.role === "walker" ? "Pasea" : "Solo mira");
+  const coat = data.family.dogCoat as DogCoat;
+
+  const roleText = (m: Member) => {
+    const fixed = data.family.fixedDays.map((x, i) => (x === m.id ? dayName(i) : null)).filter(Boolean);
+    const base = m.role === "admin" ? (m.walks ? "Admin, lo saca" : "Admin") : m.walks ? "Lo saca" : "Solo mira";
+    return fixed.length ? `${base}. Fijo los ${fixed.join(" y ")}` : base;
+  };
 
   async function share() {
-    const text = `Sumate a ${data.family.name} en LukeApp para organizar los paseos de ${data.family.dogName} 🐾\nCódigo: ${data.family.joinCode}\n${location.origin}`;
+    const text = `Sumate a ${data.family.name} en LukeApp para organizar los paseos de ${data.family.dogName}.\nCódigo: ${data.family.joinCode}\n${location.origin}`;
     try {
       if (navigator.share) await navigator.share({ title: "LukeApp", text });
       else {
@@ -30,87 +38,73 @@ export function FamilyTab({ toast }: { toast: (m: string) => void }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <header className="pt-2 flex items-center gap-3">
-        <span className="text-5xl" aria-hidden>
-          {data.family.dogEmoji}
+    <div className="flex flex-col gap-5">
+      <header className="pt-3 flex items-center gap-4">
+        <span className="h-20 w-20 rounded-full bg-pine flex items-end justify-center overflow-hidden shrink-0">
+          <Dog mood="happy" coat={coat} size={92} sun={false} className="translate-y-2" />
         </span>
-        <div>
-          <h1 className="text-3xl font-black leading-tight">{data.family.name}</h1>
-          <p className="text-[var(--ink-soft)] font-bold">
-            {data.family.dogName} pasea a las {data.family.walkTimes.join(" y ")}
+        <div className="min-w-0">
+          <h1 className="display text-[2rem] truncate">{data.family.name}</h1>
+          <p className="text-ink-2">
+            {data.family.dogName} sale a las {data.family.walkTimes.join(" y a las ")}
           </p>
         </div>
       </header>
 
       <NotificationsCard toast={toast} />
 
-      <section className="card p-4">
-        <h2 className="text-xl font-black">Invitar a la familia</h2>
-        <p className="text-[var(--ink-soft)] font-semibold">Mandales este código. Lo ponen en “Entrar a mi familia”.</p>
-        <div className="flex items-center gap-3 mt-3">
-          <span className="flex-1 min-w-0 text-center text-2xl font-black tracking-wider whitespace-nowrap bg-[var(--bg-deep)] rounded-2xl py-3">{data.family.joinCode}</span>
-          <button className="btn btn-primary" onClick={() => void share()}>
-            Compartir
+      <section className="card p-5">
+        <h2 className="font-semibold text-lg">Invitar a la familia</h2>
+        <p className="text-ink-2 mt-1">Compartí este código. Se ingresa en “Entrar a mi familia”.</p>
+        <div className="mt-4 flex items-center gap-2">
+          <button
+            className="tap flex-1 min-w-0 rounded-2xl bg-sunken py-3.5 flex items-center justify-center gap-2"
+            onClick={() => void navigator.clipboard?.writeText(data.family.joinCode).then(() => toast("Código copiado."))}
+            aria-label="Copiar código"
+          >
+            <span className="display text-[1.75rem] tracking-[0.12em] whitespace-nowrap">{data.family.joinCode}</span>
+            <Copy size={17} className="text-ink-3" />
+          </button>
+          <button className="btn btn-primary !min-h-[3.75rem] !px-5" onClick={() => void share()}>
+            <Share2 size={19} /> Compartir
           </button>
         </div>
       </section>
 
-      <section className="card p-4">
-        <h2 className="text-xl font-black mb-2">Quiénes somos</h2>
-        <ul className="flex flex-col">
+      <section className="card overflow-hidden">
+        <h2 className="font-semibold text-lg px-5 pt-5 pb-2">Integrantes</h2>
+        <ul className="divide-y divide-line">
           {data.members.map((m) => (
             <li key={m.id}>
-              <button className="tap w-full flex items-center gap-3 py-2 text-left disabled:cursor-default" disabled={!isAdmin} onClick={() => setSheet({ member: m })}>
+              <button className="tap w-full flex items-center gap-3.5 px-5 py-3 text-left disabled:cursor-default active:bg-sunken" disabled={!isAdmin} onClick={() => setSheet({ member: m })}>
                 <Avatar member={m} size={46} />
-                <span className="flex-1">
-                  <span className="block font-extrabold text-lg">
-                    {m.name} {m.id === me.id && <span className="text-[var(--ink-soft)] font-bold">(vos)</span>}
+                <span className="flex-1 min-w-0">
+                  <span className="block font-semibold">
+                    {m.name}
+                    {m.id === me.id && <span className="font-normal text-ink-3"> (vos)</span>}
                   </span>
-                  <span className="block text-sm font-bold text-[var(--ink-soft)]">
-                    {roleText(m)}
-                    {data.family.fixedDays.some((x) => x === m.id) &&
-                      ` · fijo los ${data.family.fixedDays
-                        .map((x, i) => (x === m.id ? dayName(i) : null))
-                        .filter(Boolean)
-                        .join(", ")}`}
-                  </span>
+                  <span className="block text-[0.9375rem] text-ink-3">{roleText(m)}</span>
                 </span>
-                {isAdmin && <span className="text-[var(--ink-soft)]">›</span>}
+                {isAdmin && <ChevronRight size={20} className="text-ink-3" />}
               </button>
             </li>
           ))}
         </ul>
         {isAdmin && (
-          <button className="btn btn-soft w-full mt-2" onClick={() => setSheet({ member: null })}>
-            + Sumar a alguien
-          </button>
+          <div className="p-4 pt-2">
+            <button className="btn btn-soft w-full" onClick={() => setSheet({ member: null })}>
+              <Plus size={18} /> Sumar a alguien
+            </button>
+          </div>
         )}
       </section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <button className="tap card p-4 flex flex-col items-center gap-1" onClick={() => setSheet("game")}>
-          <span className="text-4xl" aria-hidden>
-            🎾
-          </span>
-          <span className="font-extrabold">Jugar con {data.family.dogName}</span>
-        </button>
-        <button className="tap card p-4 flex flex-col items-center gap-1" onClick={() => setSheet("how")}>
-          <span className="text-4xl" aria-hidden>
-            💡
-          </span>
-          <span className="font-extrabold">¿Cómo funciona?</span>
-        </button>
-      </div>
-
-      {isAdmin && (
-        <button className="btn btn-white" onClick={() => setSheet("settings")}>
-          ⚙️ Horarios, días fijos y reglas
-        </button>
-      )}
-      <button className="btn btn-ghost" onClick={() => void f.signOut()}>
-        Salir / cambiar de persona
-      </button>
+      <section className="card overflow-hidden divide-y divide-line">
+        <Row icon={<Dog mood="happy" coat={coat} size={30} sun={false} />} label={`Jugar con ${data.family.dogName}`} onClick={() => setSheet("game")} />
+        <Row icon={<CircleHelp size={20} />} label="¿Cómo funciona?" onClick={() => setSheet("how")} />
+        {isAdmin && <Row icon={<Settings2 size={20} />} label="Horarios, días fijos y reglas" onClick={() => setSheet("settings")} />}
+        <Row icon={<LogOut size={20} />} label="Salir o cambiar de persona" onClick={() => void f.signOut()} />
+      </section>
 
       <Sheet open={sheet === "how"} onClose={() => setSheet(null)} title="¿Cómo funciona?">
         <HowItWorks family={data.family} />
@@ -124,41 +118,45 @@ export function FamilyTab({ toast }: { toast: (m: string) => void }) {
   );
 }
 
+function Row({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button className="tap w-full flex items-center gap-3.5 px-5 py-4 text-left active:bg-sunken" onClick={onClick}>
+      <span className="h-9 w-9 rounded-full bg-pine-soft text-pine flex items-center justify-center shrink-0 overflow-hidden">{icon}</span>
+      <span className="flex-1 font-medium">{label}</span>
+      <ChevronRight size={20} className="text-ink-3" />
+    </button>
+  );
+}
+
 function HowItWorks({ family }: { family: Family }) {
-  const steps = [
-    ["📅", "Cada día tiene a alguien", "La app reparte los paseos. Algunos días son fijos y el resto se turnan."],
-    ["🔔", "Te avisamos", "10 minutos antes y a la hora. Si no confirmás, insistimos hasta que lo hagas."],
-    ["✅", "Lo sacás y tocás “Ya lo saqué”", "Así todos saben que el perro paseó."],
-    ["🙅", "¿No podés? Avisá antes", "El paseo pasa a otra persona al instante. O pedí un cambio de día."],
-    ...(family.settings.penalty ? [["🐾", "Si nadie confirma…", `${family.dogName} se queda esperando y quien faltó carga con el próximo paseo de otra persona.`]] : []),
-    ["🔥", "La racha", "Cuántos días seguidos paseó sin falta. ¡Que no se corte!"],
+  const steps: [React.ReactNode, string, string][] = [
+    [<CalendarDays key="c" size={20} />, "Cada día tiene a alguien", "La app reparte los paseos. Algunos días son fijos y el resto se turnan en orden."],
+    [<Bell key="b" size={20} />, "Te avisamos", "10 minutos antes y a la hora. Si no confirmás, insistimos hasta que lo hagas."],
+    [<Dog key="d" mood="happy" coat={family.dogCoat as DogCoat} size={30} sun={false} />, "Lo sacás y lo confirmás", "Tocás “Ya lo saqué” y toda la familia lo ve."],
+    [<X key="x" size={20} />, "¿No podés? Avisá antes", "El paseo pasa en el momento a otra persona. También podés pedir cambiar el día."],
+    ...(family.settings.penalty
+      ? ([[<Scale key="s" size={20} />, "Si nadie lo confirma", `Quien faltó saca a ${family.dogName} en el próximo turno de otra persona: es el paseo de deuda.`]] as [React.ReactNode, string, string][])
+      : []),
   ];
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex justify-center">
-        <Luke mood="happy" size={120} />
-      </div>
+    <ol className="flex flex-col gap-5">
       {steps.map(([icon, title, text]) => (
-        <div key={title} className="flex gap-3">
-          <span className="text-3xl" aria-hidden>
-            {icon}
-          </span>
+        <li key={title} className="flex gap-4">
+          <span className="h-11 w-11 rounded-full bg-pine-soft text-pine flex items-center justify-center shrink-0 overflow-hidden">{icon}</span>
           <div>
-            <p className="font-extrabold text-lg">{title}</p>
-            <p className="text-[var(--ink-soft)] font-semibold">{text}</p>
+            <p className="font-semibold text-lg">{title}</p>
+            <p className="text-ink-2 mt-0.5">{text}</p>
           </div>
-        </div>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }
 
 function MemberSheet({ member, onClose, toast }: { member: Member | null; onClose: () => void; toast: (m: string) => void }) {
   const f = useFamily();
   const isNew = !member;
-  const [draft, setDraft] = useState<Omit<Member, "id">>(
-    member ?? { name: "", avatar: AVATARS[f.data.members.length % AVATARS.length], color: COLORS[f.data.members.length % COLORS.length], role: "walker", walks: true },
-  );
+  const [draft, setDraft] = useState<Omit<Member, "id">>(member ?? newDraft(f.data.members.length));
   const [busy, setBusy] = useState(false);
   const isMe = member?.id === f.me.id;
 
@@ -166,14 +164,13 @@ function MemberSheet({ member, onClose, toast }: { member: Member | null; onClos
     setBusy(true);
     try {
       const saved = await f.store.saveMember(f.data.family.id, { ...draft, id: member?.id ?? "", name: draft.name.trim() });
-      // Mantener la rotación al día con quién pasea
       const fam = f.data.family;
       const inRotation = fam.rotation.includes(saved.id);
       if (saved.walks && !inRotation) await f.store.updateFamily({ ...fam, rotation: [...fam.rotation, saved.id] });
       if (!saved.walks && inRotation)
         await f.store.updateFamily({ ...fam, rotation: fam.rotation.filter((x) => x !== saved.id), fixedDays: fam.fixedDays.map((x) => (x === saved.id ? null : x)) });
       await f.reload();
-      toast(isNew ? `Listo. Pasale el código a ${saved.name}.` : "Guardado.");
+      toast(isNew ? `Listo. Pasale el código a ${saved.name}.` : "Cambios guardados.");
       onClose();
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo guardar.");
@@ -185,22 +182,22 @@ function MemberSheet({ member, onClose, toast }: { member: Member | null; onClos
   return (
     <Sheet open onClose={onClose} title={isNew ? "Sumar a alguien" : draft.name}>
       <MemberEditor draft={draft} isFirst={isMe} onChange={(p) => setDraft((d) => ({ ...d, ...p }))} />
-      <button className="btn btn-primary btn-big mt-4" disabled={!draft.name.trim() || busy} onClick={() => void save()}>
+      <button className="btn btn-primary btn-lg mt-5" disabled={!draft.name.trim() || busy} onClick={() => void save()}>
         Guardar
       </button>
       {!isNew && !isMe && (
-        <div className="flex flex-col gap-2 mt-4">
+        <div className="flex flex-col gap-1 mt-4">
           <button
-            className="btn btn-white"
+            className="btn btn-ghost"
             onClick={async () => {
               await f.store.resetPin(f.data.family.id, member.id);
               toast(`${member.name} va a poder crear un PIN nuevo.`);
             }}
           >
-            🔑 Se olvidó el PIN
+            <KeyRound size={18} /> Se olvidó el PIN
           </button>
           <button
-            className="btn btn-ghost !text-[var(--red)]"
+            className="btn btn-danger"
             onClick={async () => {
               if (!confirm(`¿Sacar a ${member.name} de la familia?`)) return;
               await f.store.removeMember(f.data.family.id, member.id);
@@ -208,7 +205,7 @@ function MemberSheet({ member, onClose, toast }: { member: Member | null; onClos
               onClose();
             }}
           >
-            Sacar de la familia
+            <Trash2 size={18} /> Sacar de la familia
           </button>
         </div>
       )}
@@ -233,11 +230,21 @@ function SettingsSheet({ onClose, toast }: { onClose: () => void; toast: (m: str
 
   return (
     <Sheet open onClose={onClose} title="Reglas de la familia">
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-7">
         <label>
           <span className="label">Nombre del perro</span>
           <input className="field" value={fam.dogName} onChange={(e) => setFam({ ...fam, dogName: e.target.value })} />
         </label>
+        <div>
+          <span className="label">Pelaje</span>
+          <div className="grid grid-cols-4 gap-2">
+            {COATS.map((c) => (
+              <button key={c.id} className={`tap rounded-2xl bg-surface p-1 border-2 ${fam.dogCoat === c.id ? "border-pine" : "border-transparent"}`} onClick={() => setFam({ ...fam, dogCoat: c.id })} aria-pressed={fam.dogCoat === c.id} aria-label={c.label}>
+                <Dog mood="happy" coat={c.id} size={64} sun={false} />
+              </button>
+            ))}
+          </div>
+        </div>
         <div>
           <span className="label">Horarios de paseo</span>
           <div className="flex flex-col gap-2">
@@ -245,89 +252,93 @@ function SettingsSheet({ onClose, toast }: { onClose: () => void; toast: (m: str
               <div key={i} className="flex gap-2">
                 <input type="time" className="field flex-1" value={t} onChange={(e) => setFam({ ...fam, walkTimes: fam.walkTimes.map((x, j) => (j === i ? e.target.value : x)) })} aria-label={`Horario ${i + 1}`} />
                 {fam.walkTimes.length > 1 && (
-                  <button className="btn btn-white" onClick={() => setFam({ ...fam, walkTimes: fam.walkTimes.filter((_, j) => j !== i) })} aria-label="Quitar">
-                    ✕
+                  <button className="btn btn-outline !px-4" onClick={() => setFam({ ...fam, walkTimes: fam.walkTimes.filter((_, j) => j !== i) })} aria-label="Quitar horario">
+                    <X size={18} />
                   </button>
                 )}
               </div>
             ))}
             <button className="btn btn-soft" onClick={() => setFam({ ...fam, walkTimes: [...fam.walkTimes, "08:00"] })}>
-              + Otro horario
+              <Plus size={18} /> Sumar otro horario
             </button>
           </div>
         </div>
         <div>
           <span className="label">Días fijos</span>
-          <div className="flex flex-col gap-2">
+          <div className="card divide-y divide-line">
             {fam.fixedDays.map((x, wd) => (
-              <div key={wd} className="flex items-center gap-2">
-                <span className="w-24 font-bold capitalize">{dayName(wd)}</span>
-                <select className="field flex-1 !min-h-11" value={x ?? ""} onChange={(e) => setFam({ ...fam, fixedDays: fam.fixedDays.map((v, j) => (j === wd ? e.target.value || null : v)) })}>
-                  <option value="">🔄 Se turnan</option>
+              <label key={wd} className="flex items-center gap-3 px-4 py-2">
+                <span className="w-24 font-medium">{cap(dayName(wd))}</span>
+                <select className="field flex-1 !min-h-11 !border-0 !px-0 text-right bg-transparent" value={x ?? ""} onChange={(e) => setFam({ ...fam, fixedDays: fam.fixedDays.map((v, j) => (j === wd ? e.target.value || null : v)) })}>
+                  <option value="">Se turnan</option>
                   {walkers.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.avatar} {w.name}
+                      {w.name}
                     </option>
                   ))}
                 </select>
-              </div>
+              </label>
             ))}
           </div>
         </div>
         <div>
           <span className="label">Orden en que se turnan</span>
-          <ol className="flex flex-col gap-2">
+          <ol className="card divide-y divide-line">
             {rotation.map((id, i) => {
               const m = f.member(id)!;
               return (
-                <li key={id} className="card p-2 flex items-center gap-2">
-                  <span className="w-6 text-center font-black">{i + 1}</span>
+                <li key={id} className="px-3 py-2 flex items-center gap-3">
+                  <span className="w-5 text-center text-ink-3 font-medium tabular-nums">{i + 1}</span>
                   <Avatar member={m} size={34} />
-                  <span className="flex-1 font-bold">{m.name}</span>
-                  <button className="tap h-10 w-10 rounded-full bg-[var(--bg-deep)]" onClick={() => move(i, -1)} aria-label="Subir">
-                    ↑
+                  <span className="flex-1 font-medium">{m.name}</span>
+                  <button className="tap h-10 w-10 rounded-full bg-sunken flex items-center justify-center disabled:opacity-30" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Subir">
+                    <ChevronRight size={18} className="-rotate-90" />
                   </button>
-                  <button className="tap h-10 w-10 rounded-full bg-[var(--bg-deep)]" onClick={() => move(i, 1)} aria-label="Bajar">
-                    ↓
+                  <button className="tap h-10 w-10 rounded-full bg-sunken flex items-center justify-center disabled:opacity-30" disabled={i === rotation.length - 1} onClick={() => move(i, 1)} aria-label="Bajar">
+                    <ChevronRight size={18} className="rotate-90" />
                   </button>
                 </li>
               );
             })}
           </ol>
         </div>
-        <label className="card p-4 flex items-center gap-3">
-          <input type="checkbox" className="h-6 w-6 accent-[var(--orange)]" checked={fam.settings.penalty} onChange={() => toggle("penalty")} />
-          <span>
-            <span className="block font-extrabold">🐾 Paseo de deuda</span>
-            <span className="block text-sm font-semibold text-[var(--ink-soft)]">Si nadie confirma, quien faltó carga con el próximo paseo de otra persona.</span>
-          </span>
-        </label>
-        <label className="card p-4 flex items-center gap-3">
-          <input type="checkbox" className="h-6 w-6 accent-[var(--orange)]" checked={fam.settings.insistent} onChange={() => toggle("insistent")} />
-          <span>
-            <span className="block font-extrabold">🔔 Avisos insistentes</span>
-            <span className="block text-sm font-semibold text-[var(--ink-soft)]">Repite el aviso cada 5 minutos y después avisa a los demás.</span>
-          </span>
-        </label>
-        <p className="text-sm text-[var(--ink-soft)] font-semibold">Los cambios en días fijos y orden se aplican a todo el calendario. Las excepciones e intercambios ya hechos se mantienen.</p>
+        <div className="card divide-y divide-line">
+          <Toggle checked={fam.settings.penalty} onChange={() => toggle("penalty")} title="Paseo de deuda" text="Si nadie confirma, quien faltó saca al perro en el próximo turno de otra persona." icon={<Scale size={19} />} />
+          <Toggle checked={fam.settings.insistent} onChange={() => toggle("insistent")} title="Avisos insistentes" text="Repite el aviso cada 5 minutos y después avisa al resto de la familia." icon={<Bell size={19} />} />
+        </div>
+        <p className="text-[0.9375rem] text-ink-3">Los cambios en días fijos y en el orden se aplican a todo el calendario. Las excepciones e intercambios que ya se hicieron se mantienen.</p>
         <button
-          className="btn btn-primary btn-big"
+          className="btn btn-primary btn-lg"
           disabled={busy || !fam.dogName.trim() || fam.walkTimes.length === 0}
           onClick={async () => {
             setBusy(true);
             try {
               await f.store.updateFamily({ ...fam, rotation, walkTimes: [...new Set(fam.walkTimes)] });
               await f.reload();
-              toast("Guardado.");
+              toast("Cambios guardados.");
               onClose();
             } finally {
               setBusy(false);
             }
           }}
         >
-          Guardar
+          Guardar cambios
         </button>
       </div>
     </Sheet>
+  );
+}
+
+function Toggle({ checked, onChange, title, text, icon }: { checked: boolean; onChange: () => void; title: string; text: string; icon: React.ReactNode }) {
+  return (
+    <label className="flex items-start gap-3.5 p-4 cursor-pointer">
+      <IconBadge size={36}>{icon}</IconBadge>
+      <span className="flex-1">
+        <span className="block font-semibold">{title}</span>
+        <span className="block text-[0.9375rem] text-ink-3 mt-0.5">{text}</span>
+      </span>
+      <input type="checkbox" className="sr-only peer" checked={checked} onChange={onChange} />
+      <span className="mt-1 relative h-7 w-12 shrink-0 rounded-full bg-line transition-colors peer-checked:bg-pine peer-focus-visible:outline peer-focus-visible:outline-3 peer-focus-visible:outline-sun after:absolute after:top-1 after:left-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5" aria-hidden />
+    </label>
   );
 }

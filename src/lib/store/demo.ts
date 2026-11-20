@@ -7,7 +7,7 @@ import { augusFamily } from "../domain/seed";
 import type { FamilyData, Member } from "../domain/types";
 import { StoreError, type FamilyPreview, type NewFamilyInput, type Session, type Store } from "./types";
 
-const DB_KEY = "lukeapp.demo.db";
+const DB_KEY = "lukeapp.demo.db.v2";
 const SESSION_KEY = "lukeapp.session";
 
 interface DemoDB {
@@ -145,7 +145,7 @@ export class DemoStore implements Store {
       familyId: data.family.id,
       familyName: data.family.name,
       dogName: data.family.dogName,
-      dogEmoji: data.family.dogEmoji,
+      dogCoat: data.family.dogCoat,
       members: data.members.map((m) => ({ id: m.id, name: m.name, avatar: m.avatar, color: m.color, hasPin: !!db.pins[m.id] })),
     };
   }
@@ -234,7 +234,7 @@ export class DemoStore implements Store {
 
   async sendTestPush() {
     const reg = await navigator.serviceWorker?.ready;
-    await reg?.showNotification("🐾 Prueba de LukeApp", {
+    await reg?.showNotification("Prueba de LukeApp", {
       body: "¡Así te van a llegar los avisos del paseo!",
       icon: "/icon-192.png",
       badge: "/badge.png",

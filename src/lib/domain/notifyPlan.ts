@@ -86,21 +86,21 @@ function render(s: Step, t: Turn, dog: string, name: (id: string | null) => stri
   if (!who) {
     // Turno sin responsable: se avisa a todos los que pasean a la hora del paseo.
     if (s.key !== "pre" && s.key !== "now" && s.key !== "others") return null;
-    return { ...base, to: walkers, title: `🆘 Nadie puede sacar a ${dog}`, body: `Es a las ${t.slot}. ¿Lo podés sacar vos? Abrí la app.`, actionable: false };
+    return { ...base, to: walkers, title: `Nadie puede sacar a ${dog}`, body: `Es a las ${t.slot}. ¿Lo podés sacar vos? Abrí la app.`, actionable: false };
   }
   const n = name(who);
   switch (s.to) {
     case "assignee":
-      if (s.key === "pre") return { ...base, to: [who], title: `🐕 En 10 minutos, ${dog} te espera`, body: `${n}, hoy te toca a las ${t.slot}.`, actionable: false };
-      if (s.key === "now") return { ...base, to: [who], title: `🦮 ¡Es hora del paseo de ${dog}!`, body: `${n}, sacalo y tocá “Ya lo saqué”.`, actionable: true };
-      if (s.key === "late") return { ...base, to: [who], title: `⚠️ ${dog} sigue esperando`, body: `${n}, todavía no confirmaste el paseo de las ${t.slot}. Si ya lo sacaste, tocá “Ya lo saqué”.`, actionable: true };
-      return { ...base, to: [who], title: `🐾 ${dog} te mira con la correa en la boca`, body: `${n}, ¿ya lo sacaste? Confirmalo para que dejemos de insistir.`, actionable: true };
+      if (s.key === "pre") return { ...base, to: [who], title: `En 10 minutos, ${dog} te espera`, body: `${n}, hoy te toca a las ${t.slot}.`, actionable: false };
+      if (s.key === "now") return { ...base, to: [who], title: `¡Es hora del paseo de ${dog}!`, body: `${n}, sacalo y tocá “Ya lo saqué”.`, actionable: true };
+      if (s.key === "late") return { ...base, to: [who], title: `${dog} sigue esperando`, body: `${n}, todavía no confirmaste el paseo de las ${t.slot}. Si ya lo sacaste, tocá “Ya lo saqué”.`, actionable: true };
+      return { ...base, to: [who], title: `${dog} te mira con la correa en la boca`, body: `${n}, ¿ya lo sacaste? Confirmalo para que dejemos de insistir.`, actionable: true };
     case "walkers": {
       const others = walkers.filter((id) => id !== who);
-      return { ...base, to: [...others, who], title: `🆘 ${dog} todavía no salió`, body: `A ${n} le tocaba a las ${t.slot} y no confirmó. ¿Alguien lo puede sacar?`, actionable: false };
+      return { ...base, to: [...others, who], title: `${dog} todavía no salió`, body: `A ${n} le tocaba a las ${t.slot} y no confirmó. ¿Alguien lo puede sacar?`, actionable: false };
     }
     case "watchers":
-      return watchers.length ? { ...base, to: watchers, title: `😢 ${dog} no salió a pasear`, body: `A ${n} le tocaba a las ${t.slot} y todavía no lo confirmó.`, actionable: false } : null;
+      return watchers.length ? { ...base, to: watchers, title: `${dog} no salió a pasear`, body: `A ${n} le tocaba a las ${t.slot} y todavía no lo confirmó.`, actionable: false } : null;
     default:
       return null;
   }
@@ -112,7 +112,7 @@ export function debtPush(data: FamilyData, debtorId: string, missedDate: ISODate
   const when = targetDate ? (targetDate === addDays(today, 1) ? "mañana" : `el ${targetDate.slice(8)}/${targetDate.slice(5, 7)}`) : null;
   return {
     to: data.members.map((m) => m.id),
-    title: `🐾 Paseo de deuda para ${n}`,
+    title: `Paseo de deuda para ${n}`,
     body: `${missedDate === addDays(today, -1) ? "Ayer" : "Un día"} nadie confirmó el paseo de ${data.family.dogName}.${when ? ` ${n} lo saca ${when} en lugar de otra persona.` : ""}`,
   };
 }

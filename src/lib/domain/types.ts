@@ -5,7 +5,7 @@ export type Role = "admin" | "walker" | "observer";
 export interface Member {
   id: string;
   name: string;
-  /** Emoji de la cara elegida, ej. "🧑" */
+  /** Cara elegida (semilla de avatar) */
   avatar: string;
   /** Color de fondo de la cara (hex) */
   color: string;
@@ -25,7 +25,8 @@ export interface Family {
   id: string;
   name: string;
   dogName: string;
-  dogEmoji: string;
+  /** Color del pelaje para la ilustración: black | brown | golden | gray */
+  dogCoat: string;
   timeZone: string;
   /** Horarios de paseo de cada día, ej. ["17:20"] */
   walkTimes: HHMM[];

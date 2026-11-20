@@ -15,7 +15,7 @@ export function pawIcon(size: number, { maskable = false, mono = false } = {}) {
         width: pad2(w),
         height: pad2(h),
         borderRadius: "50%",
-        background: mono ? "#000" : "#fff",
+        background: mono ? "#000" : "#F2F1EA",
       }}
     />
   );
@@ -25,7 +25,7 @@ export function pawIcon(size: number, { maskable = false, mono = false } = {}) {
         style={{
           width: size,
           height: size,
-          background: mono ? "transparent" : "#F2711C",
+          background: mono ? "transparent" : "#1E3A2B",
           borderRadius: maskable || mono ? 0 : size * 0.22,
           display: "flex",
           position: "relative",
@@ -43,7 +43,7 @@ export function pawIcon(size: number, { maskable = false, mono = false } = {}) {
             width: pad2(42),
             height: pad2(36),
             borderRadius: `${pad2(20)}px ${pad2(20)}px ${pad2(18)}px ${pad2(18)}px`,
-            background: mono ? "#000" : "#fff",
+            background: mono ? "#000" : "#F2F1EA",
           }}
         />
       </div>

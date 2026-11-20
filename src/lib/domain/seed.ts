@@ -7,7 +7,7 @@ export function augusFamily(startDate = "2026-11-16"): FamilyData {
       id: "fam-augus",
       name: "Familia de Augus",
       dogName: "Luke",
-      dogEmoji: "🐕",
+      dogCoat: "black",
       timeZone: "America/Argentina/Buenos_Aires",
       walkTimes: ["17:20"],
       // Lunes Augus, martes Lucio, el resto rota.
@@ -20,9 +20,9 @@ export function augusFamily(startDate = "2026-11-16"): FamilyData {
       joinCode: "LUKE-4821",
     },
     members: [
-      { id: "augus", name: "Augus", avatar: "🧑🏻", color: "#FDBA74", role: "admin", walks: true },
-      { id: "lucio", name: "Lucio", avatar: "👦🏻", color: "#93C5FD", role: "walker", walks: true },
-      { id: "silhect", name: "SilHect", avatar: "👨🏻", color: "#C4B5FD", role: "observer", walks: false },
+      { id: "augus", name: "Augus", avatar: "Mateo", color: "#f3dcc0", role: "admin", walks: true },
+      { id: "lucio", name: "Lucio", avatar: "Bruno", color: "#d9e6d5", role: "walker", walks: true },
+      { id: "silhect", name: "SilHect", avatar: "Felipe", color: "#dcdfee", role: "observer", walks: false },
     ],
     overrides: [],
     swaps: [],
