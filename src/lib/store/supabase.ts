@@ -121,7 +121,14 @@ export class SupabaseStore implements Store {
 
   async requestPasswordReset(email: string) {
     const { error } = await this.sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${location.origin}/?recuperar=1` });
-    fail(error, error?.status === 429 ? "Ya te mandamos un email hace poco. Esperá unos minutos." : "No pudimos mandar el email. Revisá la dirección.");
+    fail(
+      error,
+      error?.status === 429
+        ? "Ya te mandamos un email hace poco. Esperá unos minutos."
+        : error?.status && error.status >= 500
+          ? "El servidor de emails no respondió. Probá de nuevo en un rato."
+          : "No pudimos mandar el email. Revisá la dirección.",
+    );
   }
 
   async updatePassword(password: string): Promise<Session> {
