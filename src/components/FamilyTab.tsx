@@ -109,6 +109,13 @@ export function FamilyTab({ toast }: { toast: (m: string) => void }) {
 
       <Sheet open={sheet === "how"} onClose={() => setSheet(null)} title="¿Cómo funciona?">
         <HowItWorks family={data.family} />
+        <p className="text-[0.8125rem] text-ink-3 mt-8">
+          Avatares:{" "}
+          <a className="underline" href="https://personas.draftbit.com/" target="_blank" rel="noreferrer">
+            Personas de Draftbit
+          </a>
+          , licencia CC BY 4.0.
+        </p>
       </Sheet>
       <Sheet open={sheet === "game"} onClose={() => setSheet(null)} title={`Jugá con ${data.family.dogName}`}>
         <BallGame />
