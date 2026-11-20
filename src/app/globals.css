@@ -1,0 +1,246 @@
+@import "tailwindcss";
+
+/* ===== LukeApp 2.0 · cálida naranja ===== */
+:root {
+  --bg: #fff7ec;
+  --bg-deep: #ffeedd;
+  --card: #ffffff;
+  --ink: #3a2618;
+  --ink-soft: #7a6151;
+  --line: #f1dfcc;
+  --orange: #f2711c;
+  --orange-deep: #d4560b;
+  --orange-soft: #ffe1c7;
+  --green: #2f7a55;
+  --green-soft: #d9f2e3;
+  --red: #c8372d;
+  --red-soft: #fde2df;
+  --yellow-soft: #fff3c4;
+  --shadow: 0 2px 0 rgba(58, 38, 24, 0.06), 0 10px 30px -12px rgba(58, 38, 24, 0.18);
+  color-scheme: light;
+}
+
+@theme inline {
+  --font-sans: var(--font-nunito);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-nunito), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+@layer components {
+/* ----- botones grandes, fáciles de tocar ----- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0 1.25rem;
+  border-radius: 1.1rem;
+  font-weight: 800;
+  font-size: 1.05rem;
+  transition: transform 120ms ease, background-color 160ms ease, box-shadow 160ms ease;
+  user-select: none;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.btn:disabled {
+  opacity: 0.5;
+}
+.btn:focus-visible,
+.tap:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 3px;
+}
+.btn-primary {
+  background: var(--orange);
+  color: #fff;
+  box-shadow: 0 4px 0 var(--orange-deep);
+}
+.btn-primary:active:not(:disabled) {
+  box-shadow: 0 1px 0 var(--orange-deep);
+  transform: translateY(3px);
+}
+.btn-green {
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 4px 0 #1f5a3d;
+}
+.btn-green:active:not(:disabled) {
+  box-shadow: 0 1px 0 #1f5a3d;
+  transform: translateY(3px);
+}
+.btn-soft {
+  background: var(--orange-soft);
+  color: var(--orange-deep);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-soft);
+}
+.btn-white {
+  background: var(--card);
+  color: var(--ink);
+  border: 2px solid var(--line);
+}
+.btn-big {
+  min-height: 4.5rem;
+  font-size: 1.35rem;
+  border-radius: 1.4rem;
+  width: 100%;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.screen-center {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.field {
+  width: 100%;
+  min-height: 3.25rem;
+  border-radius: 1rem;
+  border: 2px solid var(--line);
+  background: #fff;
+  padding: 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.field:focus {
+  outline: none;
+  border-color: var(--orange);
+}
+textarea.field {
+  padding: 0.75rem 1rem;
+  min-height: 5.5rem;
+}
+
+.label {
+  display: block;
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+/* ----- hoja que sube desde abajo ----- */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(58, 38, 24, 0.35);
+  z-index: 40;
+  animation: fade-in 180ms ease-out;
+}
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  max-height: 92dvh;
+  overflow-y: auto;
+  background: var(--bg);
+  border-radius: 1.75rem 1.75rem 0 0;
+  padding: 0.75rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+  animation: sheet-up 260ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  max-width: 34rem;
+  margin: 0 auto;
+}
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.pop {
+  animation: pop 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes wag {
+  0%,
+  100% {
+    transform: rotate(-12deg);
+  }
+  50% {
+    transform: rotate(18deg);
+  }
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.luke-tail {
+  transform-origin: 20% 80%;
+  transform-box: fill-box;
+  animation: wag 0.5s ease-in-out infinite;
+}
+.luke-tail-slow {
+  transform-origin: 20% 80%;
+  transform-box: fill-box;
+  animation: wag 1.6s ease-in-out infinite;
+}
+.luke-bob {
+  animation: bob 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
