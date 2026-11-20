@@ -158,7 +158,7 @@ function TodayHero({ turn, toast }: { turn: Turn; toast: (m: string) => void }) 
         {!mine && owner && turn.status !== "done" && <Avatar member={owner} size={40} ring />}
       </div>
       <div className="flex justify-center -mt-2">
-        <Dog mood={mood} coat={coat} size={220} />
+        <Dog mood={mood} coat={coat} size={210} halo="rgba(242,241,234,0.1)" />
       </div>
       <div className="px-6 pb-6">
         <h2 className="display text-[2.4rem] leading-[1.02]">{title}</h2>

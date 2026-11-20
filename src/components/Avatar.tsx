@@ -85,12 +85,12 @@ export function AvatarPicker({ value, color, onChange }: { value: string; color:
         ))}
       </div>
       <p className="label mt-4">Color de fondo</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-8 gap-1.5">
         {AVATAR_BGS.map((c) => (
           <button
             key={c}
             type="button"
-            className={`tap h-10 w-10 rounded-full border-2 ${color === c ? "border-pine" : "border-transparent"}`}
+            className={`tap aspect-square w-full rounded-full border-2 ${color === c ? "border-pine" : "border-transparent"}`}
             style={{ background: c }}
             onClick={() => onChange({ color: c })}
             aria-pressed={color === c}

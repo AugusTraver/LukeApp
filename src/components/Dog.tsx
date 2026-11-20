@@ -30,6 +30,7 @@ export function Dog({
   sun = true,
   className = "",
   label,
+  halo,
 }: {
   mood?: DogMood;
   coat?: DogCoat;
@@ -37,6 +38,8 @@ export function Dog({
   sun?: boolean;
   className?: string;
   label?: string;
+  /** Disco claro detrás del perro, para fondos oscuros. */
+  halo?: string;
 }) {
   const c = COATS.find((x) => x.id === coat) ?? COATS[0];
   const sad = mood === "sad";
@@ -52,6 +55,7 @@ export function Dog({
       role="img"
       aria-label={label ?? { happy: "El perro, contento", waiting: "El perro, esperando su paseo", sad: "El perro, triste", sleep: "El perro, durmiendo" }[mood]}
     >
+      {halo && <ellipse cx="120" cy="128" rx="100" ry="92" fill={halo} />}
       {sun && <circle cx="172" cy="66" r="34" fill="#e9b562" opacity={sad ? 0.35 : 0.9} />}
 
       {/* pasto */}

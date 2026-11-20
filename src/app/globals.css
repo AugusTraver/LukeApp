@@ -193,6 +193,7 @@ body {
     background: #fff;
     color: var(--ink);
     border: 1.5px solid var(--line);
+    white-space: nowrap;
     transition:
       background-color 140ms ease,
       border-color 140ms ease;

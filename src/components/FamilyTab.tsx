@@ -56,17 +56,17 @@ export function FamilyTab({ toast }: { toast: (m: string) => void }) {
       <section className="card p-5">
         <h2 className="font-semibold text-lg">Invitar a la familia</h2>
         <p className="text-ink-2 mt-1">Compartí este código. Se ingresa en “Entrar a mi familia”.</p>
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 flex flex-col gap-2.5">
           <button
-            className="tap flex-1 min-w-0 rounded-2xl bg-sunken py-3.5 flex items-center justify-center gap-2"
+            className="tap w-full rounded-2xl bg-sunken py-4 flex items-center justify-center gap-3"
             onClick={() => void navigator.clipboard?.writeText(data.family.joinCode).then(() => toast("Código copiado."))}
             aria-label="Copiar código"
           >
-            <span className="display text-[1.75rem] tracking-[0.12em] whitespace-nowrap">{data.family.joinCode}</span>
+            <span className="display text-[2rem] tracking-[0.1em] whitespace-nowrap">{data.family.joinCode}</span>
             <Copy size={17} className="text-ink-3" />
           </button>
-          <button className="btn btn-primary !min-h-[3.75rem] !px-5" onClick={() => void share()}>
-            <Share2 size={19} /> Compartir
+          <button className="btn btn-primary btn-lg" onClick={() => void share()}>
+            <Share2 size={19} /> Compartir código
           </button>
         </div>
       </section>

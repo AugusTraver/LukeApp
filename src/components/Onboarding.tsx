@@ -380,21 +380,29 @@ export function CreateFamily({ store, onBack, onSession }: { store: Store; onBac
           <h1 className="display text-[2.25rem]">¿Alguien tiene un día fijo?</h1>
           <p className="text-lg text-ink-2 mt-2">Los días que se turnan se reparten en orden entre todos los que pasean.</p>
           <div className="card mt-6 divide-y divide-line">
-            {fixed.map((f, wd) => (
-              <div key={wd} className="px-4 py-3.5">
-                <p className="font-semibold mb-2.5">{cap(dayName(wd))}</p>
-                <div className="flex flex-wrap gap-2">
-                  <button className="option" onClick={() => setFixed((x) => x.map((v, j) => (j === wd ? null : v)))} aria-pressed={f === null}>
-                    Se turnan
-                  </button>
-                  {walkerIdx.map((i) => (
-                    <button key={i} className="option !pl-1.5" onClick={() => setFixed((x) => x.map((v, j) => (j === wd ? i : v)))} aria-pressed={f === i}>
-                      <Avatar member={members[i]} size={30} /> {members[i].name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
+            {fixed.map((f, wd) => {
+              const who = f !== null ? members[f] : null;
+              return (
+                <label key={wd} className="flex items-center gap-3 px-4 py-2.5">
+                  <span className="w-24 font-semibold">{cap(dayName(wd))}</span>
+                  <span className="flex-1 flex items-center justify-end gap-2 min-w-0">
+                    {who && <Avatar member={who} size={30} />}
+                    <select
+                      className="min-h-11 bg-transparent text-right font-medium text-ink-2 pr-1 max-w-[60%]"
+                      value={f ?? ""}
+                      onChange={(e) => setFixed((x) => x.map((v, j) => (j === wd ? (e.target.value === "" ? null : Number(e.target.value)) : v)))}
+                    >
+                      <option value="">Se turnan</option>
+                      {walkerIdx.map((i) => (
+                        <option key={i} value={i}>
+                          {members[i].name || "Sin nombre"}
+                        </option>
+                      ))}
+                    </select>
+                  </span>
+                </label>
+              );
+            })}
           </div>
         </section>
       )}
@@ -467,10 +475,10 @@ export function MemberEditor({ draft, isFirst, onChange, onRemove }: { draft: Dr
       </div>
       <div className="flex gap-2 mt-3">
         <button className="option" onClick={() => onChange(isFirst ? { walks: true } : { role: "walker", walks: true })} aria-pressed={draft.walks}>
-          <Footprints size={17} /> {isFirst ? "Yo también lo saco" : "Lo saca"}
+          <Footprints size={17} /> {isFirst ? "Lo saco" : "Lo saca"}
         </button>
         <button className="option" onClick={() => onChange(isFirst ? { walks: false } : { role: "observer", walks: false })} aria-pressed={!draft.walks}>
-          <Eye size={17} /> Solo mira
+          <Eye size={17} /> {isFirst ? "Solo miro" : "Solo mira"}
         </button>
       </div>
       <Sheet open={picking} onClose={() => setPicking(false)} title="Elegí una cara">

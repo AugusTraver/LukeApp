@@ -116,7 +116,7 @@ export function BallGame() {
           </button>
         )}
         {phase !== "play" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-paper/80 backdrop-blur-[2px] text-center px-6">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-paper/55 text-center px-6">
             {phase === "end" ? (
               <>
                 <p className="display text-[2rem]">{score} pelotas</p>

@@ -109,7 +109,9 @@ export function HistoryTab() {
                       ? `${by?.name} lo sacó a las ${hhmm(t.confirmation!.at, tz)}${by && t.memberId && by.id !== t.memberId ? `, cubriendo a ${owner?.name}` : ""}.`
                       : t.status === "missed"
                         ? `No salió. Le tocaba a ${owner?.name ?? "nadie"}.`
-                        : `Le toca a ${owner?.name ?? "nadie"}.`}
+                        : t.memberId === f.me.id
+                          ? "Te toca a vos."
+                          : `Le toca a ${owner?.name ?? "nadie"}.`}
                   </p>
                   {notes.map((n) => (
                     <p key={n} className="text-ink-3 text-[0.9375rem] mt-1">
