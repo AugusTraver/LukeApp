@@ -59,7 +59,7 @@ todo se guarda en ese navegador y no hay avisos push reales. Si ya tenés Supaba
 2. **Claves de avisos**: `npx web-push generate-vapid-keys`.
 3. **Vercel** (gratis): importá el repo de GitHub y cargá las variables de [`.env.example`](.env.example).
 4. **Cron de avisos**: en Supabase → SQL Editor corré [`supabase/cron.sql`](supabase/cron.sql)
-   con la URL de Vercel y tu `CRON_SECRET`.
+   reemplazando solo la URL de Vercel (la clave la genera la base de datos).
 5. Abrí la app en el celular, **creá tu familia** y compartí el código. La pantalla Hoy guía a cada
    persona para instalar la app y probar los avisos.
 
