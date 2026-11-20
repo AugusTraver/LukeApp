@@ -223,6 +223,12 @@ export class DemoStore implements Store {
     });
   }
 
+  async updateMyAvatar(familyId: string, memberId: string, avatar: string, color: string) {
+    this.mutate(familyId, (d) => {
+      d.members = d.members.map((m) => (m.id === memberId ? { ...m, avatar, color } : m));
+    });
+  }
+
   async addAbsence(familyId: string, a: Absence) {
     this.mutate(familyId, (d) => {
       d.absences = [...(d.absences ?? []), a];

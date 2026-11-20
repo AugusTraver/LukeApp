@@ -46,7 +46,7 @@ todo se guarda en ese navegador y no hay avisos push reales. Si ya tenés Supaba
 
 1. **Supabase** (gratis): creá un proyecto en https://supabase.com.
    - SQL Editor → corré, en orden, los archivos de [`supabase/migrations/`](supabase/migrations/):
-     `20261119000000_init.sql` y `20261120000000_dogs_absences_leave.sql`.
+     `20261119000000_init.sql`, `20261120000000_dogs_absences_leave.sql` y `20261120010000_my_avatar.sql`.
    - Authentication → Sign In / Providers → activá **Allow anonymous sign-ins** (lo usan los
      miembros que entran con código + PIN) y desactivá **Confirm email** para que el admin entre al toque.
    - Authentication → URL Configuration → **Site URL** = la dirección de la app, y en **Redirect URLs**

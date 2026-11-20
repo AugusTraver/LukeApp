@@ -25,7 +25,7 @@ import { activeCalendars, allCalendars, allDogs, joinNames, newCalendarFrom, set
 import { addDays, dayName } from "@/lib/domain/dates";
 import { MAIN, type Calendar, type Dog as DogT, type Family, type Member } from "@/lib/domain/types";
 import { useFamily } from "@/lib/useFamily";
-import { Avatar } from "./Avatar";
+import { Avatar, AvatarPicker } from "./Avatar";
 import { BallGame } from "./BallGame";
 import { Dog, DogPack, type DogCoat } from "./Dog";
 import { CoatPicker, Field, FixedDaysEditor, Segmented, TimesEditor } from "./form";
@@ -33,7 +33,7 @@ import { InstallSheet, NotificationsCard } from "./Notifications";
 import { MemberEditor, newDraft } from "./Onboarding";
 import { IconBadge, Sheet } from "./ui";
 
-type SheetId = null | "how" | "game" | "settings" | "away" | "install" | "leave" | { member: Member | null };
+type SheetId = null | "how" | "game" | "settings" | "away" | "install" | "leave" | "myAvatar" | { member: Member | null };
 
 const ddmm = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`;
 
@@ -108,16 +108,20 @@ export function FamilyTab({ toast }: { toast: (m: string) => void }) {
         <ul className="divide-y divide-line">
           {data.members.map((m) => (
             <li key={m.id}>
-              <button className="tap w-full flex items-center gap-3.5 px-5 py-3 text-left disabled:cursor-default active:bg-sunken" disabled={!isAdmin} onClick={() => setSheet({ member: m })}>
+              <button
+                className="tap w-full flex items-center gap-3.5 px-5 py-3 text-left disabled:cursor-default active:bg-sunken"
+                disabled={!isAdmin && m.id !== me.id}
+                onClick={() => setSheet(isAdmin ? { member: m } : "myAvatar")}
+              >
                 <Avatar member={m} size={46} />
                 <span className="flex-1 min-w-0">
                   <span className="block font-semibold">
                     {m.name}
                     {m.id === me.id && <span className="font-normal text-ink-3"> (vos)</span>}
                   </span>
-                  <span className="block text-[0.9375rem] text-ink-3">{roleText(m)}</span>
+                  <span className="block text-[0.9375rem] text-ink-3">{!isAdmin && m.id === me.id ? "Tocá para cambiar tu avatar" : roleText(m)}</span>
                 </span>
-                {isAdmin && <ChevronRight size={20} className="text-ink-3" />}
+                {(isAdmin || m.id === me.id) && <ChevronRight size={20} className="text-ink-3" />}
               </button>
             </li>
           ))}
@@ -161,6 +165,7 @@ export function FamilyTab({ toast }: { toast: (m: string) => void }) {
       {sheet === "settings" && <SettingsSheet onClose={() => setSheet(null)} toast={toast} />}
       {sheet === "away" && <AwaySheet onClose={() => setSheet(null)} toast={toast} />}
       {sheet === "leave" && <LeaveSheet onClose={() => setSheet(null)} />}
+      {sheet === "myAvatar" && <MyAvatarSheet onClose={() => setSheet(null)} toast={toast} />}
       {typeof sheet === "object" && sheet !== null && <MemberSheet member={sheet.member} onClose={() => setSheet(null)} toast={toast} />}
     </div>
   );
@@ -279,6 +284,46 @@ function MemberSheet({ member, onClose, toast }: { member: Member | null; onClos
           </div>
         </div>
       )}
+    </Sheet>
+  );
+}
+
+/** Para quien no es admin: cambiar solo su propio avatar. */
+function MyAvatarSheet({ onClose, toast }: { onClose: () => void; toast: (m: string) => void }) {
+  const f = useFamily();
+  const [avatar, setAvatar] = useState(f.me.avatar);
+  const [color, setColor] = useState(f.me.color);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Sheet open onClose={onClose} title="Tu avatar">
+      <AvatarPicker
+        value={avatar}
+        color={color}
+        name={f.me.name}
+        onChange={(p) => {
+          if (p.avatar) setAvatar(p.avatar);
+          if (p.color) setColor(p.color);
+        }}
+      />
+      <button
+        className="btn btn-primary btn-lg mt-4"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            await f.store.updateMyAvatar(f.full.family.id, f.me.id, avatar, color);
+            await f.reload();
+            toast("Avatar guardado.");
+            onClose();
+          } catch (e) {
+            toast(e instanceof Error ? e.message : "No se pudo guardar.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        Guardar
+      </button>
     </Sheet>
   );
 }

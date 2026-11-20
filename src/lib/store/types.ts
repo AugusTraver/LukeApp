@@ -56,6 +56,8 @@ export interface Store {
   saveMember(familyId: string, m: Member): Promise<Member>;
   removeMember(familyId: string, memberId: string): Promise<void>;
   resetPin(familyId: string, memberId: string): Promise<void>;
+  /** Cualquiera: cambiar su propio avatar. */
+  updateMyAvatar(familyId: string, memberId: string, avatar: string, color: string): Promise<void>;
 
   addAbsence(familyId: string, a: Absence): Promise<void>;
   removeAbsence(familyId: string, id: string): Promise<void>;

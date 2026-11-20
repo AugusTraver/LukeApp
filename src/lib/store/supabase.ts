@@ -292,6 +292,11 @@ export class SupabaseStore implements Store {
     fail(error, "No se pudo sacar.");
   }
 
+  async updateMyAvatar(familyId: string, _memberId: string, avatar: string, color: string) {
+    const { error } = await this.sb.rpc("update_my_avatar", { fid: familyId, new_avatar: avatar, new_color: color });
+    fail(error, "No se pudo guardar el avatar.");
+  }
+
   async addAbsence(familyId: string, a: Absence) {
     const me = await this.myMemberId(familyId);
     const { error } = await this.sb.from("absences").insert({ id: a.id, family_id: familyId, member_id: a.memberId, from_date: a.from, to_date: a.to, reason: a.reason ?? null, created_by: me });
