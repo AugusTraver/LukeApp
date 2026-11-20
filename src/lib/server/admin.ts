@@ -38,10 +38,18 @@ export async function loadFamilyServer(familyId: string): Promise<FamilyData> {
 
 /** Miembro vinculado al usuario del token (para /api/notify). */
 export async function memberFromToken(token: string | null) {
-  if (!token) return null;
+  if (!token || token === "undefined") {
+    console.error("[auth] pedido sin sesión");
+    return null;
+  }
   const sb = adminClient();
-  const { data } = await sb.auth.getUser(token);
-  if (!data.user) return null;
-  const { data: row } = await sb.from("member_devices").select("member_id, family_id").eq("user_id", data.user.id).maybeSingle();
+  const { data, error } = await sb.auth.getUser(token);
+  if (!data.user) {
+    // Si dice "Invalid API key", la SUPABASE_SECRET_KEY de Vercel está mal copiada.
+    console.error("[auth] no se pudo validar la sesión:", error?.status, error?.message);
+    return null;
+  }
+  const { data: row, error: e2 } = await sb.from("member_devices").select("member_id, family_id").eq("user_id", data.user.id).maybeSingle();
+  if (!row) console.error("[auth] el usuario no está vinculado a una familia", e2?.message ?? "");
   return row ? { memberId: row.member_id as string, familyId: row.family_id as string } : null;
 }

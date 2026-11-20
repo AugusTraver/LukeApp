@@ -59,6 +59,8 @@ export async function sendToMembers(familyId: string, memberIds: string[], paylo
         ok++;
       } catch (e) {
         const code = (e as { statusCode?: number }).statusCode;
+        const body = (e as { body?: string }).body;
+        console.error("[push] falló el envío", code, String(body ?? (e as Error).message).slice(0, 200), new URL(s.endpoint).host);
         if (code === 404 || code === 410) await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
       }
     }),

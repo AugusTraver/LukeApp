@@ -337,7 +337,20 @@ export class SupabaseStore implements Store {
   }
 
   async sendTestPush(familyId: string) {
-    await this.notify(familyId, { type: "test" });
+    const { data } = await this.sb.auth.getSession();
+    let res: Response;
+    try {
+      res = await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token}` },
+        body: JSON.stringify({ familyId, type: "test" }),
+      });
+    } catch {
+      throw new StoreError("No se pudo mandar la prueba. Revisá la conexión.");
+    }
+    const json = (await res.json().catch(() => ({}))) as { sent?: number; message?: string };
+    if (!res.ok) throw new StoreError(json.message ?? `El servidor respondió ${res.status}.`);
+    if (!json.sent) throw new StoreError("El servidor no pudo entregar el aviso a este celular. Desactivá y volvé a activar los avisos.");
   }
 
   /** Pide al servidor que avise a los involucrados (cambios, intercambios, pruebas). */

@@ -7,7 +7,7 @@ import { sendToMembers } from "@/lib/server/push";
 export async function POST(request: Request) {
   const token = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? null;
   const me = await memberFromToken(token);
-  if (!me) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (!me) return Response.json({ error: "unauthorized", message: "El servidor no pudo validar tu sesión." }, { status: 401 });
 
   const body = (await request.json().catch(() => ({}))) as { familyId?: string; type?: string; id?: string; ids?: string[] };
   if (body.familyId !== me.familyId) return Response.json({ error: "forbidden" }, { status: 403 });
@@ -66,5 +66,6 @@ export async function POST(request: Request) {
     }
   }
 
+  if (body.type === "test" && sent === 0) console.error("[push] la prueba no llegó a ningún celular de", me.memberId);
   return Response.json({ ok: true, sent });
 }

@@ -308,7 +308,7 @@ export function NotificationsCard({ toast }: { toast: (m: string) => void }) {
         </button>
       )}
       {on && (
-        <button className="btn btn-outline w-full mt-4" disabled={busy} onClick={() => void test().then(() => toast("Enviado. Debería llegarte en unos segundos."))}>
+        <button className="btn btn-outline w-full mt-4" disabled={busy} onClick={() => void test().then(() => toast("Enviado. Debería llegarte en unos segundos."), (e) => toast(e instanceof Error ? e.message : "No se pudo mandar la prueba."))}>
           Mandarme un aviso de prueba
         </button>
       )}
@@ -466,8 +466,8 @@ export function SetupChecklist({ toast }: { toast: (m: string) => void }) {
                   try {
                     await push.test();
                     setWaiting(true);
-                  } catch {
-                    toast("No se pudo mandar. Revisá la conexión.");
+                  } catch (e) {
+                    toast(e instanceof Error ? e.message : "No se pudo mandar. Revisá la conexión.");
                   } finally {
                     setBusy(false);
                   }
