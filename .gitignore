@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+
+# cron con el secreto real (no subir)
+supabase/cron.local.sql
