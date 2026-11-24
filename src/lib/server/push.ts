@@ -31,6 +31,15 @@ export interface PushPayload {
   token?: string;
 }
 
+/**
+ * "Topic" del aviso (uno nuevo reemplaza al anterior con el mismo topic).
+ * Apple rechaza todo lo que no sea letras y números (400 BadWebPushTopic), así que se limpia.
+ */
+export function pushTopic(tag?: string) {
+  const t = tag?.replace(/[^A-Za-z0-9]/g, "").slice(0, 32);
+  return t || undefined;
+}
+
 /** Envía a todos los celulares de esos miembros. Borra suscripciones vencidas. */
 export async function sendToMembers(familyId: string, memberIds: string[], payload: Omit<PushPayload, "token" | "turn">, turn?: { date: string; slot: string; calendarId?: string; actionableFor?: string }) {
   if (memberIds.length === 0) return 0;
@@ -54,7 +63,7 @@ export async function sendToMembers(familyId: string, memberIds: string[], paylo
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(body), {
           TTL: 60 * 60,
           urgency: payload.urgent ? "high" : "normal",
-          topic: payload.tag?.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32),
+          topic: pushTopic(payload.tag),
         });
         ok++;
       } catch (e) {
